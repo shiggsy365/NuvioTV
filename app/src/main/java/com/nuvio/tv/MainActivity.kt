@@ -48,6 +48,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -98,6 +99,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.nuvio.tv.core.runtime.PluginRuntimeHooks
 import com.nuvio.tv.data.local.LiveTvSettingsDataStore
+import com.nuvio.tv.data.local.PodcastLibraryDataStore
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -258,6 +260,9 @@ open class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var liveTvSettingsDataStore: LiveTvSettingsDataStore
+
+    @Inject
+    lateinit var podcastLibraryDataStore: PodcastLibraryDataStore
 
     @Inject
     lateinit var authManager: AuthManager
@@ -856,10 +861,12 @@ open class MainActivity : ComponentActivity() {
 
                     val liveTvSettings by liveTvSettingsDataStore.settings.collectAsState(initial = com.nuvio.tv.domain.model.LiveTvSettings())
                     val showLiveTv = liveTvSettings.isConfigured
-                    val rootRoutes = remember(discoverLocation, showLiveTv) {
+                    val showPodcasts by podcastLibraryDataStore.menuEnabled.collectAsState(initial = true)
+                    val rootRoutes = remember(discoverLocation, showLiveTv, showPodcasts) {
                         buildSet {
                             add(Screen.Home.route)
                             if (showLiveTv) add(Screen.LiveTv.route)
+                            if (showPodcasts) add(Screen.Podcasts.route)
                             add(Screen.Search.route)
                             add(Screen.Library.route)
                             add(Screen.Settings.route)
@@ -871,6 +878,7 @@ open class MainActivity : ComponentActivity() {
 
                     val strNavHome = stringResource(R.string.nav_home)
                     val strNavLiveTv = "Live TV"
+                    val strNavPodcasts = "Podcasts"
                     val strNavDiscover = stringResource(R.string.nav_discover)
                     val strNavSearch = stringResource(R.string.nav_search)
                     val strNavLibrary = stringResource(R.string.nav_library)
@@ -878,12 +886,14 @@ open class MainActivity : ComponentActivity() {
                     val drawerItems = remember(
                         strNavHome,
                         strNavLiveTv,
+                        strNavPodcasts,
                         strNavDiscover,
                         strNavSearch,
                         strNavLibrary,
                         strNavSettings,
                         discoverLocation,
-                        showLiveTv
+                        showLiveTv,
+                        showPodcasts
                     ) {
                         buildList {
                             add(
@@ -899,6 +909,15 @@ open class MainActivity : ComponentActivity() {
                                         route = Screen.LiveTv.route,
                                         label = strNavLiveTv,
                                         icon = Icons.Default.LiveTv
+                                    )
+                                )
+                            }
+                            if (showPodcasts) {
+                                add(
+                                    DrawerItem(
+                                        route = Screen.Podcasts.route,
+                                        label = strNavPodcasts,
+                                        icon = Icons.Default.Podcasts
                                     )
                                 )
                             }
@@ -1354,7 +1373,7 @@ private fun LegacySidebarScaffold(
                             .align(Alignment.CenterStart)
                             .offset(y = 28.dp)
                             .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                         horizontalAlignment = Alignment.Start
                     ) {
                         drawerItems.forEach { item ->
@@ -1513,7 +1532,7 @@ private fun LegacySidebarButton(
     Card(
         onClick = onClick,
         modifier = modifier
-            .height(NuvioComponents.tokens.sidebar.itemHeight)
+            .height(44.dp)
             .graphicsLayer {
                 scaleX = itemScale
                 scaleY = itemScale

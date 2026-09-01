@@ -436,7 +436,9 @@ class WatchProgressRepositoryImpl @Inject constructor(
     override val continueWatching: Flow<List<WatchProgress>>
         get() = allProgress.map { list ->
             list.filter { progress ->
-                progress.isInProgress() && !progress.contentType.equals("channel", ignoreCase = true)
+                progress.isInProgress() &&
+                    !progress.contentType.equals("channel", ignoreCase = true) &&
+                    !progress.contentType.equals("podcast", ignoreCase = true)
             }
         }
 
@@ -711,6 +713,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveProgress(progress: WatchProgress, syncRemote: Boolean) {
+        val isPodcast = progress.contentType.equals("podcast", ignoreCase = true)
         // Clear any CW dismiss keys for this series so it reappears in Continue Watching.
         if (progress.contentType.equals("series", ignoreCase = true) ||
             progress.contentType.equals("tv", ignoreCase = true)) {
@@ -718,7 +721,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
         }
         val profileId = profileManager.activeProfileId.value
         val progressKey = progressKey(progress)
-        val shouldPushRemote = syncRemote &&
+        val shouldPushRemote = syncRemote && !isPodcast &&
             authManager.isAuthenticated &&
             remoteProgressWriteDeduplicator.shouldSend(
                 profileId = profileId,
@@ -726,7 +729,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
                 progress = progress,
                 nowMs = SystemClock.elapsedRealtime()
             )
-        activeProgressProvider()?.applyOptimisticProgress(progress, quiet = !syncRemote)
+        if (!isPodcast) activeProgressProvider()?.applyOptimisticProgress(progress, quiet = !syncRemote)
         watchProgressPreferences.saveProgress(progress, profileId = profileId)
 
         if (shouldPushRemote) {
@@ -871,6 +874,10 @@ class WatchProgressRepositoryImpl @Inject constructor(
 
     override suspend fun markAsCompleted(progress: WatchProgress, broadcastTrackingHistory: Boolean) {
         val profileId = profileManager.activeProfileId.value
+        if (progress.contentType.equals("podcast", ignoreCase = true)) {
+            watchProgressPreferences.markAsCompleted(progress, profileId = profileId)
+            return
+        }
         if (progress.contentType.equals("series", ignoreCase = true) ||
             progress.contentType.equals("tv", ignoreCase = true)) {
             traktSettingsDataStore.removeDismissedNextUpKeysForContent(progress.contentId)

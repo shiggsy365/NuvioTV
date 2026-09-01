@@ -1186,6 +1186,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                                 }
                                 PlayerStartupPlaybackPolicy.ReadyAction.None -> Unit
                             }
+                            maybeCompleteAudioOnlyStartup()
                             tryApplyPendingResumeProgress(this@apply)
                             _uiState.value.pendingSeekPosition?.let { position ->
                                 seekTo(position)
@@ -1986,6 +1987,7 @@ internal fun PlayerRuntimeController.resetLoadingOverlayForNewStream() {
     pendingSeekTelemetryReadyAssumed = false
     lastKnownDuration = 0L
     currentStreamHasVideoTrack = false
+    currentStreamHasAudioTrack = false
     currentVideoTrackIsLikelyVc1 = false
     currentVideoTrackMimeType = null
     currentVideoTrackCodecs = null

@@ -452,6 +452,13 @@ internal class PlayerMediaSourceFactory(private val context: Context) {
                 "audio/x-matroska",
                 "video/mkv",
                 "audio/mkv" -> MimeTypes.VIDEO_MATROSKA
+                "audio/mpeg", "audio/mp3" -> MimeTypes.AUDIO_MPEG
+                "audio/mp4", "audio/x-m4a" -> MimeTypes.AUDIO_MP4
+                "audio/aac" -> MimeTypes.AUDIO_AAC
+                "audio/ogg", "application/ogg" -> MimeTypes.AUDIO_OGG
+                "audio/opus" -> MimeTypes.AUDIO_OPUS
+                "audio/flac", "audio/x-flac" -> MimeTypes.AUDIO_FLAC
+                "audio/wav", "audio/x-wav", "audio/wave" -> MimeTypes.AUDIO_WAV
                 else -> null
             }
         }
@@ -582,6 +589,13 @@ internal class PlayerMediaSourceFactory(private val context: Context) {
                 extension == "mov" -> MIME_VIDEO_QUICK_TIME
                 extension == "avi" -> MimeTypes.VIDEO_AVI
                 extension == "mpeg" || extension == "mpg" -> MimeTypes.VIDEO_MPEG
+                extension == "mp3" -> MimeTypes.AUDIO_MPEG
+                extension == "m4a" || extension == "m4b" -> MimeTypes.AUDIO_MP4
+                extension == "aac" -> MimeTypes.AUDIO_AAC
+                extension == "ogg" || extension == "oga" -> MimeTypes.AUDIO_OGG
+                extension == "opus" -> MimeTypes.AUDIO_OPUS
+                extension == "flac" -> MimeTypes.AUDIO_FLAC
+                extension == "wav" || extension == "wave" -> MimeTypes.AUDIO_WAV
                 else -> inferMimeTypeFromQuery(queryPart)
                     ?: inferMimeTypeFromDelimitedToken(pathPart)
                     ?: inferMimeTypeFromDelimitedToken(queryPart)

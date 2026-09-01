@@ -690,6 +690,7 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
     }
     val parentContentId = contentId?.takeIf { it.isNotEmpty() } ?: return
     val parentContentType = contentType?.takeIf { it.isNotEmpty() } ?: return
+    val isPodcast = parentContentType.equals("podcast", ignoreCase = true)
 
     if (position < 1000) return
 
@@ -726,10 +727,10 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
                     broadcastTrackingHistory = false
                 )
             }
-            runCatching { tvRecommendationManager.onProgressRemoved(normalizedProgress.contentId) }
+            if (!isPodcast) runCatching { tvRecommendationManager.onProgressRemoved(normalizedProgress.contentId) }
         } else {
-            watchProgressRepository.saveProgress(normalizedProgress, syncRemote = syncRemote)
-            runCatching { tvRecommendationManager.updateSingleWatchNextProgram(normalizedProgress) }
+            watchProgressRepository.saveProgress(normalizedProgress, syncRemote = syncRemote && !isPodcast)
+            if (!isPodcast) runCatching { tvRecommendationManager.updateSingleWatchNextProgram(normalizedProgress) }
         }
     }
 }

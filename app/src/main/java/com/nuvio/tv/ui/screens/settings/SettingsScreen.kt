@@ -1165,8 +1165,10 @@ private fun IntegrationSettingsContent(
     mdbListFocusRequester: FocusRequester,
     animeSkipFocusRequester: FocusRequester,
     onNavigateToLiveTvSettings: () -> Unit,
-    autoFocusEnabled: Boolean
+    autoFocusEnabled: Boolean,
+    podcastSettingsViewModel: PodcastSettingsViewModel = hiltViewModel()
 ) {
+    val podcastsMenuEnabled by podcastSettingsViewModel.menuEnabled.collectAsStateWithLifecycle()
     BackHandler(enabled = selectedSection != IntegrationSettingsSection.Hub) {
         onSelectSection(IntegrationSettingsSection.Hub)
     }
@@ -1212,6 +1214,16 @@ private fun IntegrationSettingsContent(
                                     subtitle = "M3U playlist and XMLTV programme guide",
                                     onClick = onNavigateToLiveTvSettings,
                                     modifier = Modifier.focusRequester(hubEntryFocusRequester)
+                                )
+                            }
+                            item(key = "integration_hub_podcasts") {
+                                SettingsToggleRow(
+                                    title = "Show Podcasts",
+                                    subtitle = "Show Podcasts in the main menu for this profile",
+                                    checked = podcastsMenuEnabled,
+                                    onToggle = {
+                                        podcastSettingsViewModel.setMenuEnabled(!podcastsMenuEnabled)
+                                    }
                                 )
                             }
                             item(key = "integration_hub_debrid") {

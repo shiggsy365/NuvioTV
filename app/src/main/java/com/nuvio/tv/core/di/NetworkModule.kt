@@ -15,6 +15,7 @@ import com.nuvio.tv.data.remote.api.IntroDbApi
 import com.nuvio.tv.data.remote.api.ImdbTapframeApi
 import com.nuvio.tv.data.remote.api.MDBListApi
 import com.nuvio.tv.data.remote.api.ParentalGuideApi
+import com.nuvio.tv.data.remote.api.PodcastApi
 import com.nuvio.tv.data.remote.api.PlaybackIssueReportApi
 import com.nuvio.tv.data.remote.api.PremiumizeApi
 import com.nuvio.tv.data.remote.api.RealDebridApi
@@ -590,4 +591,34 @@ object NetworkModule {
     @Singleton
     fun provideImdbTapframeApi(@Named("imdbTapframe") retrofit: Retrofit): ImdbTapframeApi =
         retrofit.create(ImdbTapframeApi::class.java)
+
+    @Provides
+    @Singleton
+    @Named("applePodcasts")
+    fun provideApplePodcastRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit =
+        Retrofit.Builder()
+            .baseUrl("https://itunes.apple.com/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+
+    @Provides
+    @Singleton
+    fun providePodcastApi(@Named("applePodcasts") retrofit: Retrofit): PodcastApi =
+        retrofit.create(PodcastApi::class.java)
+
+    @Provides
+    @Singleton
+    @Named("applePodcastCharts")
+    fun provideApplePodcastChartsRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit =
+        Retrofit.Builder()
+            .baseUrl("https://rss.marketingtools.apple.com/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+
+    @Provides
+    @Singleton
+    fun providePodcastChartsApi(@Named("applePodcastCharts") retrofit: Retrofit): com.nuvio.tv.data.remote.api.PodcastChartsApi =
+        retrofit.create(com.nuvio.tv.data.remote.api.PodcastChartsApi::class.java)
 }

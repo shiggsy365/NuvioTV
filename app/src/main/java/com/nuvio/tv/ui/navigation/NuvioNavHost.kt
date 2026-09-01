@@ -29,6 +29,8 @@ import com.nuvio.tv.ui.screens.library.LibraryScreen
 import com.nuvio.tv.ui.screens.livetv.LiveTvScreen
 import com.nuvio.tv.ui.screens.livetv.LiveTvSettingsScreen
 import com.nuvio.tv.ui.screens.livetv.LiveTvPlaybackViewModel
+import com.nuvio.tv.ui.screens.podcasts.PodcastDetailScreen
+import com.nuvio.tv.ui.screens.podcasts.PodcastsScreen
 import com.nuvio.tv.ui.screens.player.PlayerExitReason
 import com.nuvio.tv.ui.screens.player.PlayerScreen
 import com.nuvio.tv.ui.screens.player.PostPlayRecommendation
@@ -1197,6 +1199,40 @@ fun NuvioNavHost(
 
         composable(Screen.LiveTvSettings.route) {
             LiveTvSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.Podcasts.route) {
+            PodcastsScreen(
+                onPodcast = { navController.navigate(Screen.PodcastDetail.createRoute(it)) },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.PodcastDetail.route,
+            arguments = listOf(navArgument("feedId") { type = NavType.StringType })
+        ) {
+            PodcastDetailScreen(
+                onPlay = { podcast, episode, episodeNumber ->
+                    navController.navigate(
+                        Screen.Player.createRoute(
+                            streamUrl = episode.audioUrl,
+                            title = episode.title,
+                            streamName = podcast.title,
+                            contentId = "podcast:${podcast.id}",
+                            contentType = "podcast",
+                            contentName = podcast.title,
+                            poster = episode.imageUrl ?: podcast.imageUrl,
+                            videoId = "podcast-episode:${episode.id}",
+                            season = 1,
+                            episode = episodeNumber,
+                            episodeTitle = episode.title,
+                            streamDescription = episode.description
+                        )
+                    )
+                },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.Settings.route) {

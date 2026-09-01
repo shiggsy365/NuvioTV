@@ -163,6 +163,7 @@ internal fun PlayerRuntimeController.updateAvailableTracks(tracks: Tracks) {
     }
 
     currentStreamHasVideoTrack = hasVideoTrack
+    currentStreamHasAudioTrack = audioTracks.isNotEmpty()
     val effectiveVideoFormat = selectedVideoFormat ?: firstVideoFormat
     if (effectiveVideoFormat != null) {
         currentVideoTrackMimeType = effectiveVideoFormat.sampleMimeType
@@ -323,9 +324,37 @@ internal fun PlayerRuntimeController.updateAvailableTracks(tracks: Tracks) {
         maybeScheduleFirstFrameWatchdog()
     } else {
         cancelFirstFrameWatchdog()
+        maybeCompleteAudioOnlyStartup()
     }
     tryAutoSelectPreferredSubtitleFromAvailableTracks()
     maybeAdjustLibassPipelineForTracks(tracks)
+}
+
+/**
+ * Audio-only streams never invoke ExoPlayer's onRenderedFirstFrame callback. Treat a
+ * prepared audio track as the equivalent startup milestone so the loading overlay,
+ * completion tracking and normal player controls can proceed.
+ */
+internal fun PlayerRuntimeController.maybeCompleteAudioOnlyStartup() {
+    val player = _exoPlayer ?: return
+    if (hasRenderedFirstFrame || currentStreamHasVideoTrack || !currentStreamHasAudioTrack) return
+    if (player.playbackState != Player.STATE_READY) return
+
+    hasRenderedFirstFrame = true
+    cancelFirstFrameWatchdog()
+    finishLoadingDiagnostics("audio_only_ready")
+    _uiState.update {
+        it.copy(
+            isBuffering = false,
+            showLoadingOverlay = false,
+            loadingMessage = null,
+            loadingProgress = if (it.loadingProgress != null) 1f else null,
+            loadingIssueReportVisible = false,
+            loadingIssueElapsedMs = 0L,
+            showPlayerEngineSwitchInfo = false
+        )
+    }
+    Log.i(PlayerRuntimeController.TAG, "Audio-only playback ready; dismissed startup overlay")
 }
 
 private fun formatSupportRank(@C.FormatSupport formatSupport: Int): Int {

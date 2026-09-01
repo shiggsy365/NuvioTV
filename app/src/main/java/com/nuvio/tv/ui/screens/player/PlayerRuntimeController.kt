@@ -598,6 +598,7 @@ class PlayerRuntimeController(
         }
 
     internal var currentStreamHasVideoTrack: Boolean = false
+    internal var currentStreamHasAudioTrack: Boolean = false
     internal var currentVideoTrackIsLikelyVc1: Boolean = false
     internal var currentVideoTrackMimeType: String? = null
     internal var currentVideoTrackCodecs: String? = null
