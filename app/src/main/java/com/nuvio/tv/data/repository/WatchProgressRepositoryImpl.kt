@@ -434,7 +434,11 @@ class WatchProgressRepositoryImpl @Inject constructor(
             }
 
     override val continueWatching: Flow<List<WatchProgress>>
-        get() = allProgress.map { list -> list.filter { it.isInProgress() } }
+        get() = allProgress.map { list ->
+            list.filter { progress ->
+                progress.isInProgress() && !progress.contentType.equals("channel", ignoreCase = true)
+            }
+        }
 
     override val watchedItems: Flow<List<WatchedItem>>
         get() = activeProgressProviderFlow().flatMapLatest { provider ->

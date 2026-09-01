@@ -26,6 +26,9 @@ import com.nuvio.tv.ui.screens.home.HomeScreen
 import com.nuvio.tv.ui.screens.addon.AddonManagerScreen
 import com.nuvio.tv.ui.screens.addon.CatalogOrderScreen
 import com.nuvio.tv.ui.screens.library.LibraryScreen
+import com.nuvio.tv.ui.screens.livetv.LiveTvScreen
+import com.nuvio.tv.ui.screens.livetv.LiveTvSettingsScreen
+import com.nuvio.tv.ui.screens.livetv.LiveTvPlaybackViewModel
 import com.nuvio.tv.ui.screens.player.PlayerExitReason
 import com.nuvio.tv.ui.screens.player.PlayerScreen
 import com.nuvio.tv.ui.screens.player.PostPlayRecommendation
@@ -762,6 +765,8 @@ fun NuvioNavHost(
                 }
             )
         ) { backStackEntry ->
+            val liveTvPlaybackViewModel: LiveTvPlaybackViewModel =
+                androidx.hilt.navigation.compose.hiltViewModel(backStackEntry)
             fun popBackToStream(): Boolean {
                 val autoPlayNavigation = backStackEntry.arguments
                     ?.getString("autoPlayNav")
@@ -806,6 +811,32 @@ fun NuvioNavHost(
             }
 
             PlayerScreen(
+                onLiveChannelStep = { delta ->
+                    val args = backStackEntry.arguments
+                    if (!args?.getString("contentType").equals("channel", ignoreCase = true)) {
+                        false
+                    } else {
+                        val currentId = args?.getString("contentId").orEmpty()
+                        val channel = liveTvPlaybackViewModel.adjacent(currentId, delta)
+                        if (channel == null) false else {
+                            navController.navigate(
+                                Screen.Player.createRoute(
+                                    streamUrl = channel.streamUrl,
+                                    title = channel.name,
+                                    streamName = channel.name,
+                                    contentId = channel.id,
+                                    contentType = "channel",
+                                    contentName = channel.name,
+                                    poster = channel.logoUrl
+                                )
+                            ) {
+                                popUpTo(Screen.Player.route) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                            true
+                        }
+                    }
+                },
                 onBackPress = { currentVideoId, currentSeason, currentEpisode, autoPlayEnabled, playbackCompleted ->
                     val args = backStackEntry.arguments
                     val initialSeason = args?.getString("season")?.toIntOrNull()
@@ -1145,12 +1176,36 @@ fun NuvioNavHost(
             )
         }
 
+        composable(Screen.LiveTv.route) {
+            LiveTvScreen(
+                onPlay = { channel ->
+                    navController.navigate(
+                        Screen.Player.createRoute(
+                            streamUrl = channel.streamUrl,
+                            title = channel.name,
+                            streamName = channel.name,
+                            contentId = channel.id,
+                            contentType = "channel",
+                            contentName = channel.name,
+                            poster = channel.logoUrl
+                        )
+                    )
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.LiveTvSettings.route) {
+            LiveTvSettingsScreen(onBack = { navController.popBackStack() })
+        }
+
         composable(Screen.Settings.route) {
             SettingsScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
                 onNavigateToTracking = { navController.navigate(Screen.Tracking.route) },
                 onNavigateToAddons = { navController.navigate(Screen.AddonManager.route) },
                 onNavigateToPlugins = { navController.navigate(Screen.Plugins.route) },
+                onNavigateToLiveTvSettings = { navController.navigate(Screen.LiveTvSettings.route) },
                 onNavigateToAuthQrSignIn = { navController.navigate(Screen.AuthQrSignIn.route) },
                 onNavigateToManageProfiles = { navController.navigate(Screen.ManageProfiles.route) },
                 onNavigateToSupportersContributors = {

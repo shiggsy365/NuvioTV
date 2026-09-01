@@ -589,6 +589,7 @@ private fun String.reportSafeHost(): String {
 }
 
 internal fun PlayerRuntimeController.saveWatchProgressIfNeeded() {
+    if (LivePlaybackUiPolicy.isLiveContentType(contentType)) return
     if (!hasRenderedFirstFrame) return
     val currentPosition = currentPlaybackPositionMs() ?: return
     val duration = getEffectiveDuration(currentPosition)
@@ -604,6 +605,7 @@ internal fun PlayerRuntimeController.saveWatchProgressIfNeeded() {
 }
 
 internal fun PlayerRuntimeController.saveWatchProgress() {
+    if (LivePlaybackUiPolicy.isLiveContentType(contentType)) return
     if (!hasRenderedFirstFrame) return
     val currentPosition = currentPlaybackPositionMs() ?: return
     val duration = getEffectiveDuration(currentPosition)
@@ -681,6 +683,7 @@ internal fun PlayerRuntimeController.cancelNextEpisodeAutoPlayOnFatalError() {
 }
 
 internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, duration: Long, syncRemote: Boolean = true) {
+    if (LivePlaybackUiPolicy.isLiveContentType(contentType)) return
     if (contentType.equals("cloud", ignoreCase = true)) {
         saveCloudLibraryProgress(position, duration, completed = false)
         return

@@ -138,5 +138,10 @@ class ProfileManager @Inject constructor(
         if (pluginCodeDir.exists()) {
             pluginCodeDir.deleteRecursively()
         }
+
+        val liveTvCacheDir = File(context.filesDir, "live_tv_p${profileId}")
+        if (liveTvCacheDir.exists()) {
+            liveTvCacheDir.deleteRecursively()
+        }
     }
 }

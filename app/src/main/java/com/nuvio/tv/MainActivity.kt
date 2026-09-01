@@ -47,6 +47,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -96,6 +97,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.nuvio.tv.core.runtime.PluginRuntimeHooks
+import com.nuvio.tv.data.local.LiveTvSettingsDataStore
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -253,6 +255,9 @@ open class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var profileManager: ProfileManager
+
+    @Inject
+    lateinit var liveTvSettingsDataStore: LiveTvSettingsDataStore
 
     @Inject
     lateinit var authManager: AuthManager
@@ -849,9 +854,12 @@ open class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    val rootRoutes = remember(discoverLocation) {
+                    val liveTvSettings by liveTvSettingsDataStore.settings.collectAsState(initial = com.nuvio.tv.domain.model.LiveTvSettings())
+                    val showLiveTv = liveTvSettings.isConfigured
+                    val rootRoutes = remember(discoverLocation, showLiveTv) {
                         buildSet {
                             add(Screen.Home.route)
+                            if (showLiveTv) add(Screen.LiveTv.route)
                             add(Screen.Search.route)
                             add(Screen.Library.route)
                             add(Screen.Settings.route)
@@ -862,17 +870,20 @@ open class MainActivity : ComponentActivity() {
                     }
 
                     val strNavHome = stringResource(R.string.nav_home)
+                    val strNavLiveTv = "Live TV"
                     val strNavDiscover = stringResource(R.string.nav_discover)
                     val strNavSearch = stringResource(R.string.nav_search)
                     val strNavLibrary = stringResource(R.string.nav_library)
                     val strNavSettings = stringResource(R.string.nav_settings)
                     val drawerItems = remember(
                         strNavHome,
+                        strNavLiveTv,
                         strNavDiscover,
                         strNavSearch,
                         strNavLibrary,
                         strNavSettings,
-                        discoverLocation
+                        discoverLocation,
+                        showLiveTv
                     ) {
                         buildList {
                             add(
@@ -882,6 +893,15 @@ open class MainActivity : ComponentActivity() {
                                     icon = Icons.Default.Home
                                 )
                             )
+                            if (showLiveTv) {
+                                add(
+                                    DrawerItem(
+                                        route = Screen.LiveTv.route,
+                                        label = strNavLiveTv,
+                                        icon = Icons.Default.LiveTv
+                                    )
+                                )
+                            }
                             if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
                                 add(
                                     DrawerItem(
@@ -1354,7 +1374,7 @@ private fun LegacySidebarScaffold(
                                             targetRoute = item.route
                                         )
                                         drawerState.setValue(DrawerValue.Closed)
-                                        pendingContentFocusTransfer = currentRoute == item.route
+                                        pendingContentFocusTransfer = true
                                     },
                                     modifier = Modifier.focusRequester(
                                         drawerItemFocusRequesters.getValue(item.route)
@@ -1952,7 +1972,7 @@ private fun ModernSidebarScaffold(
                             pendingSidebarFocusRequest = false
                             isSidebarExpanded = false
                             sidebarCollapsePending = false
-                            pendingContentFocusTransfer = currentRoute == targetRoute
+                            pendingContentFocusTransfer = true
                         },
                         activeProfileName = activeProfileName,
                         activeProfileColorHex = activeProfileColorHex,
