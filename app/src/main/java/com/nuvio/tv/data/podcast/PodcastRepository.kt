@@ -69,7 +69,7 @@ class PodcastRepository @Inject constructor(
                 .build()
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) error("Podcast feed returned ${response.code}")
-                val body = response.body
+                val body = response.body ?: error("Podcast feed returned an empty response")
                 val bytes = body.source().readUpTo(MAX_FEED_BYTES + 1L)
                 require(bytes.size <= MAX_FEED_BYTES) { "Podcast feed is too large" }
                 val episodes = parseRss(feedId, bytes, fallbackImage)
