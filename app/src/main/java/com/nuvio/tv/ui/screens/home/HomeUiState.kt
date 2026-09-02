@@ -13,11 +13,13 @@ import com.nuvio.tv.domain.model.LibraryListTab
 import com.nuvio.tv.domain.model.LibrarySourceMode
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.WatchProgress
+import com.nuvio.tv.data.local.ContinueWatchingCategory
 
 @Immutable
 data class HomeUiState(
     val catalogRows: List<CatalogRow> = emptyList(),
     val continueWatchingItems: List<ContinueWatchingItem> = emptyList(),
+    val continueWatchingCategoryAssignments: Map<String, ContinueWatchingCategory> = emptyMap(),
     val upcomingItems: List<ContinueWatchingItem> = emptyList(),
     val isLoading: Boolean = true,
     val layoutPreferencesReady: Boolean = false,
@@ -195,9 +197,16 @@ sealed class HomeEvent {
         val episode: Int? = null,
         val isNextUp: Boolean = false
     ) : HomeEvent()
+    data class OnMoveContinueWatching(
+        val contentId: String,
+        val destination: ContinueWatchingCategory?
+    ) : HomeEvent()
     data object OnRetry : HomeEvent()
 }
 
 fun homeItemStatusKey(itemId: String, itemType: String): String {
     return "${itemType.lowercase()}|$itemId"
 }
+
+fun HomeUiState.continueWatchingItemsFor(category: ContinueWatchingCategory?): List<ContinueWatchingItem> =
+    continueWatchingItems.filter { continueWatchingCategoryAssignments[it.contentId()] == category }

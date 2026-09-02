@@ -268,6 +268,7 @@ internal fun HomeViewModel.observeModernHomePresentationPipeline() {
                     homeRows = state.homeRows,
                     catalogRows = state.catalogRows,
                     continueWatchingItems = if (state.continueWatchingEnabled) state.continueWatchingItems else emptyList(),
+                    continueWatchingCategoryAssignments = state.continueWatchingCategoryAssignments,
                     upcomingItems = if (state.continueWatchingEnabled) state.upcomingItems else emptyList(),
                     useLandscapePosters = state.modernLandscapePostersEnabled,
                     showCatalogTypeSuffix = state.catalogTypeSuffixEnabled,
@@ -283,6 +284,7 @@ internal fun HomeViewModel.observeModernHomePresentationPipeline() {
             .distinctUntilChanged { old, new ->
                 old.homeRows === new.homeRows
                     && old.continueWatchingItems == new.continueWatchingItems
+                    && old.continueWatchingCategoryAssignments == new.continueWatchingCategoryAssignments
                     && old.upcomingItems == new.upcomingItems
                     && old.useLandscapePosters == new.useLandscapePosters
                     && old.showCatalogTypeSuffix == new.showCatalogTypeSuffix

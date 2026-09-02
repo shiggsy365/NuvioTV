@@ -137,6 +137,8 @@
     <string name="error_stream_tried_issues">Tried stream addons: %1$s. Streams could not be loaded for id=%2$s (type=%3$s). Issues: %4$s.</string>
 
     <string name="continue_watching">Continue Watching</string>
+    <string name="cw_action_move_to">Move to %1$s</string>
+    <string name="cw_action_move_to_continue_watching">Return to Continue Watching</string>
     <string name="cw_upcoming">Upcoming</string>
     <string name="cw_next_up">Next Up</string>
     <string name="cw_next_up_short">Next</string>

@@ -115,6 +115,7 @@ fun ModernHomeContent(
     onRequestTrailerPreview: (String, String, String?, String) -> Unit,
     onLoadMoreCatalog: (String, String, String) -> Unit,
     onRemoveContinueWatching: (String, Int?, Int?, Boolean) -> Unit,
+    onMoveContinueWatching: (String, com.nuvio.tv.data.local.ContinueWatchingCategory?) -> Unit = { _, _ -> },
     isCatalogItemWatched: (MetaPreview) -> Boolean = { false },
     onCatalogItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
     onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
@@ -1197,6 +1198,7 @@ fun ModernHomeContent(
 
     val selectedOptionsItem = optionsItem.value
     if (selectedOptionsItem != null) {
+        val selectedCategory = uiState.continueWatchingCategoryAssignments[selectedOptionsItem.contentId()]
         ContinueWatchingOptionsDialog(
             item = selectedOptionsItem,
             onDismiss = { optionsItem.value = null },
@@ -1220,6 +1222,12 @@ fun ModernHomeContent(
             },
             onStartFromBeginning = {
                 onContinueWatchingStartFromBeginning(selectedOptionsItem)
+                optionsItem.value = null
+            },
+            currentCategory = selectedCategory,
+            showMoveOptions = selectedOptionsItem in uiState.continueWatchingItems,
+            onMove = { destination ->
+                onMoveContinueWatching(selectedOptionsItem.contentId(), destination)
                 optionsItem.value = null
             },
             showPlayManually = showContinueWatchingManualPlayOption,

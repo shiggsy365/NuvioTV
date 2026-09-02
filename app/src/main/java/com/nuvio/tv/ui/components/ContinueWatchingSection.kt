@@ -69,6 +69,7 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Text
 import com.nuvio.tv.ui.screens.home.ContinueWatchingItem
+import com.nuvio.tv.data.local.ContinueWatchingCategory
 import com.nuvio.tv.ui.theme.NuvioTheme
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
@@ -128,6 +129,9 @@ fun ContinueWatchingSection(
     onItemClick: (ContinueWatchingItem) -> Unit,
     onDetailsClick: (ContinueWatchingItem) -> Unit = onItemClick,
     onRemoveItem: (ContinueWatchingItem) -> Unit,
+    currentCategory: ContinueWatchingCategory? = null,
+    onMoveItem: (ContinueWatchingItem, ContinueWatchingCategory?) -> Unit = { _, _ -> },
+    showMoveOptions: Boolean = false,
     onStartFromBeginning: (ContinueWatchingItem) -> Unit = {},
     showManualPlayOption: Boolean = false,
     onPlayManually: (ContinueWatchingItem) -> Unit = {},
@@ -311,6 +315,12 @@ fun ContinueWatchingSection(
             },
             onStartFromBeginning = {
                 onStartFromBeginning(menuItem)
+                optionsItem = null
+            },
+            currentCategory = currentCategory,
+            showMoveOptions = showMoveOptions,
+            onMove = { destination ->
+                onMoveItem(menuItem, destination)
                 optionsItem = null
             },
             showPlayManually = showManualPlayOption,
@@ -1106,6 +1116,9 @@ fun ContinueWatchingOptionsDialog(
     onRemove: () -> Unit,
     onDetails: () -> Unit,
     onStartFromBeginning: () -> Unit = {},
+    currentCategory: ContinueWatchingCategory? = null,
+    onMove: (ContinueWatchingCategory?) -> Unit = {},
+    showMoveOptions: Boolean = false,
     showPlayManually: Boolean = false,
     onPlayManually: () -> Unit = {}
 ) {
@@ -1162,6 +1175,22 @@ fun ContinueWatchingOptionsDialog(
             ) {
                 Text(stringResource(R.string.cw_action_start_from_beginning))
             }
+        }
+
+        if (showMoveOptions && currentCategory != null) {
+            Button(
+                onClick = { onMove(null) },
+                colors = ButtonDefaults.colors(containerColor = NuvioTheme.colors.BackgroundCard, contentColor = NuvioTheme.colors.TextPrimary),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(stringResource(R.string.cw_action_move_to_continue_watching)) }
+        }
+
+        if (showMoveOptions) ContinueWatchingCategory.entries.filter { it != currentCategory }.forEach { category ->
+            Button(
+                onClick = { onMove(category) },
+                colors = ButtonDefaults.colors(containerColor = NuvioTheme.colors.BackgroundCard, contentColor = NuvioTheme.colors.TextPrimary),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text(stringResource(R.string.cw_action_move_to, category.title)) }
         }
 
         Button(

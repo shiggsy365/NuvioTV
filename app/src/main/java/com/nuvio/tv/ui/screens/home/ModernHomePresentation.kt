@@ -11,12 +11,14 @@ import com.nuvio.tv.domain.model.PLACEHOLDER_IMAGE_URL
 import com.nuvio.tv.domain.model.stableItemKey
 import com.nuvio.tv.ui.util.asStable
 import kotlinx.coroutines.withContext
+import com.nuvio.tv.data.local.ContinueWatchingCategory
 
 @Immutable
 internal data class ModernHomePresentationInput(
     val homeRows: List<HomeRow>,
     val catalogRows: List<CatalogRow>,
     val continueWatchingItems: List<ContinueWatchingItem>,
+    val continueWatchingCategoryAssignments: Map<String, ContinueWatchingCategory> = emptyMap(),
     val upcomingItems: List<ContinueWatchingItem>,
     val useLandscapePosters: Boolean,
     val showCatalogTypeSuffix: Boolean,
@@ -45,10 +47,13 @@ internal fun buildModernHomePresentation(
         val catalogRowLimit = maxCatalogRows?.coerceAtLeast(0)
         var renderedCatalogRows = 0
 
-        if (input.continueWatchingItems.isNotEmpty()) {
+        val mainContinueWatchingItems = input.continueWatchingItems.filter {
+            input.continueWatchingCategoryAssignments[it.contentId()] == null
+        }
+        if (mainContinueWatchingItems.isNotEmpty()) {
             val reuseContinueWatchingRow =
                 cache.continueWatchingRow != null &&
-                    cache.continueWatchingItems == input.continueWatchingItems &&
+                    cache.continueWatchingItems == mainContinueWatchingItems &&
                     cache.continueWatchingTitle == strContinueWatching &&
                     cache.continueWatchingAirsDateTemplate == strAirsDate &&
                     cache.continueWatchingUpcomingLabel == strUpcoming &&
@@ -61,7 +66,7 @@ internal fun buildModernHomePresentation(
                     key = MODERN_CONTINUE_WATCHING_ROW_KEY,
                     title = strContinueWatching,
                     globalRowIndex = -1,
-                    items = input.continueWatchingItems.map { item ->
+                    items = mainContinueWatchingItems.map { item ->
                         buildContinueWatchingItem(
                             item = item,
                             useLandscapePosters = input.useLandscapePosters,
@@ -73,7 +78,7 @@ internal fun buildModernHomePresentation(
                     }.asStable()
                 )
             }
-            cache.continueWatchingItems = input.continueWatchingItems
+            cache.continueWatchingItems = mainContinueWatchingItems
             cache.continueWatchingTitle = strContinueWatching
             cache.continueWatchingAirsDateTemplate = strAirsDate
             cache.continueWatchingUpcomingLabel = strUpcoming
@@ -84,6 +89,22 @@ internal fun buildModernHomePresentation(
         } else {
             cache.continueWatchingItems = emptyList()
             cache.continueWatchingRow = null
+        }
+
+        ContinueWatchingCategory.entries.forEach { category ->
+            val categoryItems = input.continueWatchingItems.filter {
+                input.continueWatchingCategoryAssignments[it.contentId()] == category
+            }
+            if (categoryItems.isNotEmpty()) {
+                add(HeroCarouselRow(
+                    key = "continue_watching_${category.name.lowercase()}",
+                    title = category.title,
+                    globalRowIndex = -1,
+                    items = categoryItems.map { item ->
+                        buildContinueWatchingItem(item, input.useLandscapePosters, input.showImdbRatings, strAirsDate, strUpcoming, localizedContext)
+                    }.asStable()
+                ))
+            }
         }
 
         // Upcoming row (SPLIT_UPCOMING mode)

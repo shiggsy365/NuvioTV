@@ -99,6 +99,7 @@ fun ClassicHomeContent(
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit,
     onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
     onRemoveContinueWatching: (String, Int?, Int?, Boolean) -> Unit,
+    onMoveContinueWatching: (String, com.nuvio.tv.data.local.ContinueWatchingCategory?) -> Unit = { _, _ -> },
     isCatalogItemWatched: (MetaPreview) -> Boolean = { false },
     onCatalogItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
     onRequestTrailerPreview: (MetaPreview) -> Unit,
@@ -587,7 +588,7 @@ fun ClassicHomeContent(
             }
         }
 
-        if (uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty()) {
+        if (uiState.continueWatchingEnabled && uiState.continueWatchingItemsFor(null).isNotEmpty()) {
             item(key = "continue_watching", contentType = "continue_watching") {
                 LaunchedEffect(cwPendingScrollToStart.intValue) {
                     if (cwPendingScrollToStart.intValue > 0) {
@@ -597,7 +598,9 @@ fun ClassicHomeContent(
                     }
                 }
                 ContinueWatchingSection(
-                    items = uiState.continueWatchingItems,
+                    items = uiState.continueWatchingItemsFor(null),
+                    onMoveItem = { item, destination -> onMoveContinueWatching(item.contentId(), destination) },
+                    showMoveOptions = true,
                     onItemClick = { item ->
                         onContinueWatchingClick(item)
                     },
@@ -662,6 +665,34 @@ fun ClassicHomeContent(
                     posterTitleOverride = classicPosterTitleStyle,
                     listState = cwListState
                 )
+            }
+        }
+
+        com.nuvio.tv.data.local.ContinueWatchingCategory.entries.forEach { category ->
+            val categoryItems = uiState.continueWatchingItemsFor(category)
+            if (uiState.continueWatchingEnabled && categoryItems.isNotEmpty()) {
+                item(key = "continue_watching_${category.name}", contentType = "continue_watching_category") {
+                    ContinueWatchingSection(
+                        items = categoryItems,
+                        title = category.title,
+                        currentCategory = category,
+                        showMoveOptions = true,
+                        onMoveItem = { cwItem, destination -> onMoveContinueWatching(cwItem.contentId(), destination) },
+                        onItemClick = onContinueWatchingClick,
+                        onStartFromBeginning = onContinueWatchingStartFromBeginning,
+                        showManualPlayOption = showContinueWatchingManualPlayOption,
+                        onPlayManually = onContinueWatchingPlayManually,
+                        onDetailsClick = { cwItem -> onNavigateToDetail(cwItem.contentId(), cwItem.contentType(), "") },
+                        onRemoveItem = { cwItem -> onRemoveContinueWatching(cwItem.contentId(), cwItem.season(), cwItem.episode(), cwItem is ContinueWatchingItem.NextUp) },
+                        blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
+                        useEpisodeThumbnails = uiState.useEpisodeThumbnailsInCw,
+                        cardWidth = classicContinueWatchingCardWidth,
+                        imageHeight = classicContinueWatchingImageHeight,
+                        cardStyle = uiState.continueWatchingCardStyle,
+                        cornerRadius = posterCardStyle.cornerRadius,
+                        posterTitleOverride = classicPosterTitleStyle
+                    )
+                }
             }
         }
 

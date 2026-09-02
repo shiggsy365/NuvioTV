@@ -19,6 +19,7 @@ import com.nuvio.tv.data.local.MDBListSettingsDataStore
 import com.nuvio.tv.data.local.TmdbSettingsDataStore
 import com.nuvio.tv.data.local.TraktSettingsDataStore
 import com.nuvio.tv.data.local.ContinueWatchingEnrichmentCache
+import com.nuvio.tv.data.local.ContinueWatchingCategoryDataStore
 import com.nuvio.tv.data.trailer.TrailerService
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.CatalogDescriptor
@@ -80,6 +81,7 @@ class HomeViewModel @Inject constructor(
     internal val trailerService: TrailerService,
     internal val watchedSeriesStateHolder: com.nuvio.tv.data.local.WatchedSeriesStateHolder,
     internal val cwEnrichmentCache: ContinueWatchingEnrichmentCache,
+    internal val continueWatchingCategoryDataStore: ContinueWatchingCategoryDataStore,
     internal val profileManager: com.nuvio.tv.core.profile.ProfileManager,
     internal val tvRecommendationManager: TvRecommendationManager
 ) : ViewModel() {
@@ -322,6 +324,7 @@ class HomeViewModel @Inject constructor(
         get() = trailerPreviewAudioUrlsState
 
     init {
+        observeContinueWatchingCategories()
         // Accumulates individual watched status changes and flushes them as a single
         // update after 150ms of inactivity, preventing N separate recompositions.
         viewModelScope.launch {
@@ -419,6 +422,14 @@ class HomeViewModel @Inject constructor(
                     lastSeen = version
                     clearAllCwInMemoryCaches()
                 }
+            }
+        }
+    }
+
+    private fun observeContinueWatchingCategories() {
+        viewModelScope.launch {
+            continueWatchingCategoryDataStore.assignments.collect { assignments ->
+                _uiState.update { it.copy(continueWatchingCategoryAssignments = assignments) }
             }
         }
     }
@@ -640,6 +651,9 @@ class HomeViewModel @Inject constructor(
                 episode = event.episode,
                 isNextUp = event.isNextUp
             )
+            is HomeEvent.OnMoveContinueWatching -> viewModelScope.launch {
+                continueWatchingCategoryDataStore.move(event.contentId, event.destination)
+            }
             HomeEvent.OnRetry -> viewModelScope.launch { loadAllCatalogs(addonsCache, forceReload = true) }
         }
     }

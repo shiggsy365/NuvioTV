@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.ContinueWatchingCardStyle
 import com.nuvio.tv.ui.screens.home.ContinueWatchingItem
+import com.nuvio.tv.data.local.ContinueWatchingCategory
 import kotlin.math.abs
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -45,6 +46,9 @@ fun GridContinueWatchingSection(
     onItemClick: (ContinueWatchingItem) -> Unit,
     onDetailsClick: (ContinueWatchingItem) -> Unit = onItemClick,
     onRemoveItem: (ContinueWatchingItem) -> Unit,
+    currentCategory: ContinueWatchingCategory? = null,
+    onMoveItem: (ContinueWatchingItem, ContinueWatchingCategory?) -> Unit = { _, _ -> },
+    showMoveOptions: Boolean = false,
     onStartFromBeginning: (ContinueWatchingItem) -> Unit = {},
     showManualPlayOption: Boolean = false,
     onPlayManually: (ContinueWatchingItem) -> Unit = {},
@@ -201,6 +205,9 @@ fun GridContinueWatchingSection(
                 onStartFromBeginning(menuItem)
                 optionsItem = null
             },
+            currentCategory = currentCategory,
+            showMoveOptions = showMoveOptions,
+            onMove = { destination -> onMoveItem(menuItem, destination); optionsItem = null },
             showPlayManually = showManualPlayOption,
             onPlayManually = {
                 onPlayManually(menuItem)

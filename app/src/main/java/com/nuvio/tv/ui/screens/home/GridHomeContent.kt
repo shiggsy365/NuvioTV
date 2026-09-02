@@ -103,6 +103,7 @@ fun GridHomeContent(
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit,
     onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
     onRemoveContinueWatching: (String, Int?, Int?, Boolean) -> Unit,
+    onMoveContinueWatching: (String, com.nuvio.tv.data.local.ContinueWatchingCategory?) -> Unit = { _, _ -> },
     isCatalogItemWatched: (MetaPreview) -> Boolean = { false },
     onCatalogItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
     posterCardStyle: PosterCardStyle = PosterCardDefaults.Style,
@@ -183,7 +184,7 @@ fun GridHomeContent(
 
     // Offset for section indices: pre-items + continue watching item (if present)
     val gridItems = uiState.gridItems
-    val continueWatchingItems = if (uiState.continueWatchingEnabled) uiState.continueWatchingItems else emptyList()
+    val continueWatchingItems = if (uiState.continueWatchingEnabled) uiState.continueWatchingItemsFor(null) else emptyList()
     val continueWatchingOffset = if (continueWatchingItems.isNotEmpty()) 1 else 0
 
     LaunchedEffect(gridItems, gridFocusState.hasSavedFocus, gridFocusState.focusedItemKey) {
@@ -468,6 +469,8 @@ fun GridHomeContent(
                         modifier = Modifier.fillMaxWidth(),
                         fullWidth = gridWidth,
                         items = continueWatchingItems,
+                        onMoveItem = { item, destination -> onMoveContinueWatching(item.contentId(), destination) },
+                        showMoveOptions = true,
                         focusedItemIndex = if (shouldRequestInitialFocus && !hasHero) 0 else -1,
                         lastFocusedIndex = lastFocusedCwIndex,
                         focusRequesters = cwFocusRequesters,
@@ -512,6 +515,33 @@ fun GridHomeContent(
                         cardStyle = uiState.continueWatchingCardStyle,
                         cornerRadius = posterCardStyle.cornerRadius
                     )
+                }
+            }
+
+            com.nuvio.tv.data.local.ContinueWatchingCategory.entries.forEach { category ->
+                val categoryItems = uiState.continueWatchingItemsFor(category)
+                if (uiState.continueWatchingEnabled && categoryItems.isNotEmpty()) {
+                    item(key = "continue_watching_${category.name}", span = { GridItemSpan(maxLineSpan) }, contentType = "continue_watching_category") {
+                        GridContinueWatchingSection(
+                            modifier = Modifier.fillMaxWidth(),
+                            fullWidth = gridWidth,
+                            items = categoryItems,
+                            title = category.title,
+                            currentCategory = category,
+                            showMoveOptions = true,
+                            onMoveItem = { cwItem, destination -> onMoveContinueWatching(cwItem.contentId(), destination) },
+                            onItemClick = onContinueWatchingClick,
+                            onStartFromBeginning = onContinueWatchingStartFromBeginning,
+                            showManualPlayOption = showContinueWatchingManualPlayOption,
+                            onPlayManually = onContinueWatchingPlayManually,
+                            onDetailsClick = { cwItem -> onNavigateToDetail(cwItem.contentId(), cwItem.contentType(), "") },
+                            onRemoveItem = { cwItem -> onRemoveContinueWatching(cwItem.contentId(), cwItem.season(), cwItem.episode(), cwItem is ContinueWatchingItem.NextUp) },
+                            blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
+                            useEpisodeThumbnails = uiState.useEpisodeThumbnailsInCw,
+                            cardStyle = uiState.continueWatchingCardStyle,
+                            cornerRadius = posterCardStyle.cornerRadius
+                        )
+                    }
                 }
             }
 
