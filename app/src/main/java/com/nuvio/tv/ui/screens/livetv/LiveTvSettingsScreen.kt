@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,7 +35,6 @@ fun LiveTvSettingsScreen(onBack: () -> Unit, viewModel: LiveTvSettingsViewModel 
         }
         LiveTvTextField("M3U playlist URL", draft.playlistUrl) { draft = draft.copy(playlistUrl = it) }
         LiveTvTextField("XMLTV EPG URL", draft.epgUrl) { draft = draft.copy(epgUrl = it) }
-        LiveTvTextField("User-Agent", draft.userAgent) { draft = draft.copy(userAgent = it) }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             FocusButton("Save") { viewModel.save(draft, onBack) }
             FocusButton("Back", onBack)
@@ -52,7 +52,8 @@ private fun LiveTvTextField(label: String, value: String, onChange: (String) -> 
             value = value,
             onValueChange = onChange,
             singleLine = true,
-            textStyle = TextStyle(color = NuvioTheme.colors.TextPrimary),
+            textStyle = TextStyle(color = Color.White),
+            cursorBrush = SolidColor(NuvioTheme.colors.Primary),
             modifier = Modifier
                 .fillMaxWidth(0.72f)
                 .onFocusChanged { focused = it.isFocused }
@@ -75,14 +76,14 @@ private fun FocusButton(label: String, onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier.onFocusChanged { focused = it.isFocused },
         colors = ButtonDefaults.colors(
-            containerColor = NuvioTheme.colors.SurfaceVariant,
-            focusedContainerColor = NuvioTheme.colors.Primary,
-            contentColor = NuvioTheme.colors.TextPrimary,
-            focusedContentColor = Color.White
+            containerColor = NuvioTheme.colors.BackgroundCard,
+            focusedContainerColor = NuvioTheme.colors.Secondary,
+            contentColor = NuvioTheme.colors.TextSecondary,
+            focusedContentColor = NuvioTheme.colors.OnSecondary
         ),
         border = ButtonDefaults.border(
             focusedBorder = Border(
-                border = androidx.compose.foundation.BorderStroke(3.dp, NuvioTheme.colors.FocusRing),
+                border = androidx.compose.foundation.BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing),
                 shape = RoundedCornerShape(8.dp)
             )
         )

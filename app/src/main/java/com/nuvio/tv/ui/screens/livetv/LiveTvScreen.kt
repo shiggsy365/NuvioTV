@@ -3,17 +3,18 @@ package com.nuvio.tv.ui.screens.livetv
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -94,9 +95,22 @@ fun LiveTvScreen(
                                 selected = group == item,
                                 onClick = { group = item },
                                 colors = FilterChipDefaults.colors(
-                                    focusedContentColor = Color.Black,
-                                    focusedSelectedContentColor = Color.Black
+                                    containerColor = NuvioTheme.colors.BackgroundCard,
+                                    focusedContainerColor = NuvioTheme.colors.Secondary,
+                                    selectedContainerColor = NuvioTheme.colors.Secondary,
+                                    focusedSelectedContainerColor = NuvioTheme.colors.Secondary,
+                                    contentColor = NuvioTheme.colors.TextSecondary,
+                                    focusedContentColor = NuvioTheme.colors.OnSecondary,
+                                    selectedContentColor = NuvioTheme.colors.OnSecondary,
+                                    focusedSelectedContentColor = NuvioTheme.colors.OnSecondary
                                 ),
+                                border = FilterChipDefaults.border(
+                                    border = Border(BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Border)),
+                                    focusedBorder = Border(BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing)),
+                                    selectedBorder = Border(BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Primary)),
+                                    focusedSelectedBorder = Border(BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing))
+                                ),
+                                shape = FilterChipDefaults.shape(shape = RoundedCornerShape(20.dp)),
                                 modifier = if (item == state.guide.groups.firstOrNull()) {
                                     Modifier.focusRequester(contentFocusRequester)
                                 } else Modifier
@@ -112,7 +126,10 @@ fun LiveTvScreen(
                                 Spacer(Modifier.width(channelWidth))
                                 TimeHeader(windowStart)
                             }
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            LazyColumn(
+                                contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 items(channels, key = { it.id + it.streamUrl }) { channel ->
                                     val programmes = state.guide.programmes
                                         .filter { it.channelId == channel.id }
@@ -223,7 +240,7 @@ private fun ChannelRow(
     onFocused: (LiveTvProgramme?) -> Unit,
     onPlay: () -> Unit
 ) {
-    Row(Modifier.fillMaxWidth().height(48.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.fillMaxWidth().height(40.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         ChannelIdentity(channel, Modifier.width(channelWidth).fillMaxHeight())
         val visible = programmes.filter { it.endMillis > windowStart && it.startMillis < windowEnd }
         if (visible.isEmpty()) {
@@ -291,16 +308,35 @@ private fun ProgrammeCard(
     onFocused: () -> Unit,
     onClick: () -> Unit
 ) {
-    Card(onClick = onClick, modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() }) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.onFocusChanged {
+            if (it.isFocused) onFocused()
+        },
+        colors = CardDefaults.colors(
+            containerColor = NuvioTheme.colors.BackgroundCard,
+            focusedContainerColor = NuvioTheme.colors.FocusBackground
+        ),
+        border = CardDefaults.border(
+            border = Border.None,
+            focusedBorder = Border(BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing))
+        ),
+        shape = CardDefaults.shape(shape = RoundedCornerShape(8.dp))
+    ) {
         Column(
-            Modifier.fillMaxSize().padding(horizontal = 9.dp, vertical = 4.dp),
+            Modifier.fillMaxSize().padding(horizontal = 7.dp, vertical = 2.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
             time?.let {
                 Text(
                     it,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = NuvioTheme.colors.TextSecondary,
                     maxLines = 1
                 )

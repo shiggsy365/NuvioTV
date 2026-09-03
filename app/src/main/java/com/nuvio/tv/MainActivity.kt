@@ -2002,40 +2002,6 @@ private fun ModernSidebarScaffold(
                 }
             }
 
-            if (
-                !sidebarCollapsed &&
-                sidebarShowCollapsedPill &&
-                selectedDrawerRoute != Screen.Search.route
-            ) {
-                CollapsedSidebarPill(
-                    label = selectedDrawerItem.label,
-                    iconRes = selectedDrawerItem.iconRes,
-                    icon = selectedDrawerItem.icon,
-                    iconOnly = isFloatingPillIconOnly && !keepFloatingPillExpanded,
-                    blurEnabled = modernSidebarBlurEnabled,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset {
-                            IntOffset(
-                                (NuvioTheme.spacing.lg - NuvioTheme.spacing.xxs).roundToPx(),
-                                (NuvioTheme.spacing.lg + sidebarDeflateOffsetY).roundToPx()
-                            )
-                        }
-                        .graphicsLayer {
-                            val progress = sidebarExpandProgress
-                            alpha = 1f - progress
-                            val s = 0.9f + (0.1f * (1f - progress))
-                            scaleX = s
-                            scaleY = s
-                            transformOrigin = TransformOrigin(0f, 0f)
-                        },
-                    onExpand = {
-                        isSidebarExpanded = true
-                        sidebarCollapsePending = false
-                        pendingSidebarFocusRequest = true
-                    }
-                )
-            }
         }
     }
 }

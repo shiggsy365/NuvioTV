@@ -43,6 +43,45 @@ private const val CLASSIC_FOCUS_GRADIENT_DEBOUNCE_MS = 140L
 private const val CLASSIC_FOCUS_GRADIENT_CACHE_RETRY_MS = 360L
 private const val CLASSIC_FOCUS_GRADIENT_COLOR_CACHE_SIZE = 256
 
+@Composable
+internal fun rememberArtworkMatchedBackground(
+    imageUrl: String?,
+    fallbackColor: Color
+): Color {
+    val context = LocalContext.current
+    val cache = remember(fallbackColor) { classicFocusGradientColorCache() }
+    var target by remember(fallbackColor) { mutableStateOf(fallbackColor) }
+    val animated = animateColorAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = NuvioTheme.motion.durations.overlay),
+        label = "heroArtworkBackground"
+    )
+
+    LaunchedEffect(context, imageUrl, fallbackColor) {
+        val url = imageUrl?.takeIf(String::isNotBlank)
+        if (url == null) {
+            target = fallbackColor
+            return@LaunchedEffect
+        }
+        delay(CLASSIC_FOCUS_GRADIENT_DEBOUNCE_MS)
+        val artwork = ClassicFocusArtwork(url, url)
+        val sampled = cache[artwork] ?: run {
+            var resolved = resolveArtworkColor(context, artwork, fallbackColor)
+            if (!resolved.cacheable) {
+                delay(CLASSIC_FOCUS_GRADIENT_CACHE_RETRY_MS)
+                resolved = resolveArtworkColor(context, artwork, fallbackColor)
+            }
+            if (resolved.cacheable) cache[artwork] = resolved.color
+            resolved.color
+        }
+        // Keep the artwork hue, but treat it as a dark colour wash rather than a
+        // lightening blur. This also keeps white hero text readable on bright artwork.
+        val darkenedSample = lerp(sampled.copy(alpha = 1f), Color.Black, 0.55f)
+        target = lerp(fallbackColor.copy(alpha = 1f), darkenedSample, 0.70f)
+    }
+    return animated.value
+}
+
 internal data class ClassicFocusArtwork(
     val imageUrl: String?,
     val seed: String

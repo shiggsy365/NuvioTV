@@ -4,11 +4,16 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -159,6 +164,7 @@ fun PodcastsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val focusRequester = LocalContentFocusRequester.current
     var query by remember { mutableStateOf(TextFieldValue(state.query)) }
+    var initialTrendingFocusRequested by remember { mutableStateOf(false) }
     BackHandler(onBack = onBack)
 
     Column(
@@ -172,6 +178,16 @@ fun PodcastsScreen(
                 onValueChange = { query = it; viewModel.search(it.text) },
                 modifier = Modifier.width(420.dp),
                 singleLine = true,
+                textStyle = androidx.compose.material3.MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = NuvioTheme.colors.Primary,
+                    focusedBorderColor = NuvioTheme.colors.FocusRing,
+                    unfocusedBorderColor = NuvioTheme.colors.Border,
+                    focusedLabelColor = NuvioTheme.colors.Primary,
+                    unfocusedLabelColor = NuvioTheme.colors.TextSecondary
+                ),
                 label = { androidx.compose.material3.Text("Search podcasts") }
             )
         }
@@ -187,11 +203,23 @@ fun PodcastsScreen(
                     style = MaterialTheme.typography.titleLarge,
                     color = NuvioTheme.colors.TextPrimary
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    items(state.podcasts, key = Podcast::id) { podcast ->
+                LaunchedEffect(state.loading, state.podcasts) {
+                    if (!initialTrendingFocusRequested && state.query.isBlank() && !state.loading && state.podcasts.isNotEmpty()) {
+                        delay(120)
+                        runCatching { focusRequester.requestFocus() }
+                        initialTrendingFocusRequested = true
+                    }
+                }
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 148.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    gridItems(state.podcasts, key = Podcast::id) { podcast ->
                         PodcastCard(
                             podcast = podcast,
-                            subscribed = podcast.id in state.subscribedIds,
                             onClick = { onPodcast(podcast.id) },
                             modifier = if (podcast == state.podcasts.firstOrNull()) Modifier.focusRequester(focusRequester) else Modifier
                         )
@@ -204,8 +232,20 @@ fun PodcastsScreen(
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun PodcastCard(podcast: Podcast, subscribed: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Card(onClick = onClick, modifier = modifier.width(190.dp).height(270.dp)) {
+private fun PodcastCard(podcast: Podcast, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.width(148.dp).height(198.dp),
+        colors = CardDefaults.colors(
+            containerColor = NuvioTheme.colors.BackgroundCard,
+            focusedContainerColor = NuvioTheme.colors.FocusBackground
+        ),
+        border = CardDefaults.border(
+            border = Border.None,
+            focusedBorder = Border(BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing))
+        ),
+        shape = CardDefaults.shape(shape = RoundedCornerShape(10.dp))
+    ) {
         Column {
             AsyncImage(
                 model = podcast.imageUrl,
@@ -213,15 +253,8 @@ private fun PodcastCard(podcast: Podcast, subscribed: Boolean, onClick: () -> Un
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                 contentScale = ContentScale.Crop
             )
-            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(podcast.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    if (subscribed) "Subscribed" else podcast.author,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (subscribed) NuvioTheme.colors.Primary else NuvioTheme.colors.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(podcast.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -275,7 +308,13 @@ fun PodcastDetailScreen(
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun EpisodeCard(episode: PodcastEpisode, progress: WatchProgress?, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().height(112.dp)) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(112.dp),
+        colors = CardDefaults.colors(containerColor = NuvioTheme.colors.BackgroundCard, focusedContainerColor = NuvioTheme.colors.FocusBackground),
+        border = CardDefaults.border(border = Border.None, focusedBorder = Border(BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing))),
+        shape = CardDefaults.shape(shape = RoundedCornerShape(10.dp))
+    ) {
         Row(Modifier.fillMaxSize().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             AsyncImage(model = episode.imageUrl, contentDescription = null, modifier = Modifier.size(92.dp), contentScale = ContentScale.Crop)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {

@@ -13,6 +13,7 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -734,6 +735,21 @@ fun ModernHomeContent(
                     Triple(heroBackdrop, resolvedHero, effectiveEnrichmentActive)
                 }
             }
+            val artworkBackgroundUrl by remember(resolvedHeroState) {
+                derivedStateOf { resolvedHeroState.value.first }
+            }
+            val adaptiveBackgroundColor = rememberArtworkMatchedBackground(
+                imageUrl = artworkBackgroundUrl,
+                fallbackColor = NuvioTheme.colors.Background
+            )
+
+            // The sampled colour belongs to the whole home canvas. The hero gradient below
+            // uses the same colour, preserving a seamless fade from artwork into the page.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(adaptiveBackgroundColor)
+            )
 
             val expandedFocusedSelectionState = remember {
                 derivedStateOf {
@@ -1029,6 +1045,7 @@ fun ModernHomeContent(
                 isFullScreen = isFullScreenLambda,
                 heroMediaWidthPx = heroMediaWidthPx,
                 heroMediaHeightPx = heroMediaHeightPx,
+                backgroundColor = adaptiveBackgroundColor,
                 modifier = heroMediaModifier,
                 onTrailerEnded = onTrailerEndedLambda,
                 onFirstFrameRendered = onFirstFrameRenderedLambda
@@ -1244,16 +1261,16 @@ private fun ModernHeroSection(
     isFullScreen: () -> Boolean,
     heroMediaWidthPx: Int,
     heroMediaHeightPx: Int,
+    backgroundColor: Color,
     modifier: Modifier,
     onTrailerEnded: () -> Unit,
     onFirstFrameRendered: () -> Unit
 ) {
     val highlighterEnabled = LocalRecompositionHighlighterEnabled.current
-    val bgColor = NuvioTheme.colors.Background
     ModernHeroScene(
         state = heroSceneState,
         isFullScreen = isFullScreen,
-        bgColor = bgColor,
+        bgColor = backgroundColor,
         modifier = modifier.then(if (highlighterEnabled) Modifier.recompositionHighlighter() else Modifier),
         requestWidthPx = heroMediaWidthPx,
         requestHeightPx = heroMediaHeightPx,
