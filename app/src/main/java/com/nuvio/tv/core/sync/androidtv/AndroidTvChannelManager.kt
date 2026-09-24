@@ -13,6 +13,8 @@ import androidx.tvprovider.media.tv.PreviewProgram
 import androidx.tvprovider.media.tv.TvContractCompat
 import com.nuvio.tv.MainActivity
 import com.nuvio.tv.R
+import com.nuvio.tv.domain.model.LiveTvChannel
+import com.nuvio.tv.domain.model.LiveTvGuide
 import com.nuvio.tv.domain.model.WatchProgress
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -213,6 +215,69 @@ class AndroidTvChannelManager @Inject constructor(
         }.onFailure { Log.w(TAG, "reconcile failed", it) }
     }
 
+    suspend fun reconcileContinueWatching(
+        profileId: Int,
+        profileName: String,
+        items: List<WatchProgress>
+    ) = withContext(Dispatchers.IO) {
+        if (!isSupported()) return@withContext
+        val key = "cw_profile_$profileId"
+        val displayName = "$profileName: ${context.getString(R.string.tv_channel_continue_watching)}"
+        val channelId = ensureNamedChannel(key, displayName, launchMode = "home") ?: return@withContext
+        reconcileWatchProgress(channelId, key, profileId, items)
+    }
+
+    suspend fun reconcileLiveTv(
+        profileId: Int,
+        profileName: String,
+        guide: LiveTvGuide,
+        prefixProfileName: Boolean
+    ) = withContext(Dispatchers.IO) {
+        if (!isSupported()) return@withContext
+        val programmesByChannel = guide.programmes.groupBy { it.channelId }
+        guide.channels.groupBy { it.group.ifBlank { "Other" } }.forEach { (group, channels) ->
+            val key = "live_profile_${profileId}_${stableKey(group)}"
+            val displayName = if (prefixProfileName) "$profileName: $group" else group
+            val channelId = ensureNamedChannel(key, displayName, launchMode = "live_tv")
+                ?: return@forEach
+            reconcileLivePrograms(
+                channelId = channelId,
+                channelScope = key,
+                profileId = profileId,
+                channels = channels,
+                programmesByChannel = programmesByChannel
+            )
+        }
+    }
+
+    suspend fun removeManagedChannelsExcept(keys: Set<String>) = withContext(Dispatchers.IO) {
+        if (!isSupported()) return@withContext
+        prefs.getChannelId()?.let { legacyId ->
+            context.contentResolver.delete(TvContractCompat.buildChannelUri(legacyId), null, null)
+            prefs.clearChannelId()
+        }
+        val providerPrefix = "${context.packageName}:"
+        context.contentResolver.query(
+            TvContractCompat.Channels.CONTENT_URI,
+            arrayOf(TvContractCompat.Channels._ID, TvContractCompat.Channels.COLUMN_INTERNAL_PROVIDER_ID),
+            null, null, null
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(TvContractCompat.Channels._ID)
+            val providerIndex = cursor.getColumnIndexOrThrow(TvContractCompat.Channels.COLUMN_INTERNAL_PROVIDER_ID)
+            while (cursor.moveToNext()) {
+                val providerId = cursor.getString(providerIndex) ?: continue
+                if (!providerId.startsWith(providerPrefix)) continue
+                val key = providerId.removePrefix(providerPrefix)
+                if (key !in keys) {
+                    context.contentResolver.delete(
+                        TvContractCompat.buildChannelUri(cursor.getLong(idIndex)), null, null
+                    )
+                    prefs.clearChannelId(key)
+                }
+            }
+        }
+    }
+
     /** Removes all preview programs from our channel (used on sign-out / history clear). */
     suspend fun clearAll() = withContext(Dispatchers.IO) {
         if (!isSupported()) return@withContext
@@ -263,7 +328,8 @@ class AndroidTvChannelManager @Inject constructor(
         progress: WatchProgress,
         channelId: Long,
         sortOrder: Int,
-        key: String
+        key: String,
+        profileId: Int? = null
     ): ContentValues {
         val intentUri = Uri.parse(
             Intent(context, MainActivity::class.java).apply {
@@ -279,6 +345,7 @@ class AndroidTvChannelManager @Inject constructor(
                 progress.episode?.let { putExtra("episode", it) }
                 progress.episodeTitle?.let { putExtra("episodeTitle", it) }
                 putExtra("launchMode", "stream")
+                profileId?.let { putExtra("profileId", it) }
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }.toUri(Intent.URI_INTENT_SCHEME)
         )
@@ -370,4 +437,180 @@ class AndroidTvChannelManager @Inject constructor(
             "${progress.contentId}_s${progress.season}e${progress.episode}"
         else
             progress.contentId
+
+    private suspend fun ensureNamedChannel(
+        key: String,
+        displayName: String,
+        launchMode: String
+    ): Long? {
+        val providerId = "${context.packageName}:$key"
+        val stored = prefs.getChannelId(key)
+        if (stored != null && channelExists(stored)) {
+            updateNamedChannel(stored, providerId, displayName, launchMode)
+            return stored
+        }
+        if (stored != null) prefs.clearChannelId(key)
+
+        val orphan = findChannelByProviderId(providerId)
+        if (orphan != null) {
+            prefs.setChannelId(key, orphan)
+            updateNamedChannel(orphan, providerId, displayName, launchMode)
+            return orphan
+        }
+
+        val appLinkUri = Uri.parse(
+            Intent(context, MainActivity::class.java).apply {
+                putExtra("launchMode", launchMode)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }.toUri(Intent.URI_INTENT_SCHEME)
+        )
+        val channel = Channel.Builder()
+            .setType(TvContractCompat.Channels.TYPE_PREVIEW)
+            .setDisplayName(displayName)
+            .setAppLinkIntentUri(appLinkUri)
+            .setInternalProviderId(providerId)
+            .build()
+        val inserted = context.contentResolver.insert(
+            TvContractCompat.Channels.CONTENT_URI,
+            channel.toContentValues()
+        ) ?: return null
+        val id = ContentUris.parseId(inserted)
+        prefs.setChannelId(key, id)
+        writeChannelLogo(id)
+        TvContractCompat.requestChannelBrowsable(context, id)
+        return id
+    }
+
+    private fun updateNamedChannel(
+        channelId: Long,
+        providerId: String,
+        displayName: String,
+        launchMode: String
+    ) {
+        val appLinkUri = Uri.parse(
+            Intent(context, MainActivity::class.java).apply {
+                putExtra("launchMode", launchMode)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }.toUri(Intent.URI_INTENT_SCHEME)
+        )
+        val values = Channel.Builder()
+            .setType(TvContractCompat.Channels.TYPE_PREVIEW)
+            .setDisplayName(displayName)
+            .setAppLinkIntentUri(appLinkUri)
+            .setInternalProviderId(providerId)
+            .build()
+            .toContentValues()
+        context.contentResolver.update(TvContractCompat.buildChannelUri(channelId), values, null, null)
+    }
+
+    private fun channelExists(id: Long): Boolean = context.contentResolver.query(
+        TvContractCompat.buildChannelUri(id),
+        arrayOf(TvContractCompat.Channels._ID),
+        null, null, null
+    )?.use { it.moveToFirst() } == true
+
+    private fun findChannelByProviderId(providerId: String): Long? =
+        context.contentResolver.query(
+            TvContractCompat.Channels.CONTENT_URI,
+            arrayOf(TvContractCompat.Channels._ID, TvContractCompat.Channels.COLUMN_INTERNAL_PROVIDER_ID),
+            null, null, null
+        )?.use { cursor ->
+            val idIndex = cursor.getColumnIndexOrThrow(TvContractCompat.Channels._ID)
+            val providerIndex = cursor.getColumnIndexOrThrow(TvContractCompat.Channels.COLUMN_INTERNAL_PROVIDER_ID)
+            while (cursor.moveToNext()) {
+                if (cursor.getString(providerIndex) == providerId) return@use cursor.getLong(idIndex)
+            }
+            null
+        }
+
+    private fun reconcileWatchProgress(
+        channelId: Long,
+        channelScope: String,
+        profileId: Int,
+        items: List<WatchProgress>
+    ) {
+        val existing = queryExistingPrograms(channelId)
+        val desiredKeys = items.map(::progressKey).toSet()
+        removeStalePrograms(existing, desiredKeys, channelScope)
+        items.forEachIndexed { index, progress ->
+            val key = progressKey(progress)
+            val rowIds = existing[key]
+            val values = buildProgramValues(progress, channelId, index, key, profileId)
+            upsertProgram(rowIds, values, key)
+        }
+    }
+
+    private fun reconcileLivePrograms(
+        channelId: Long,
+        channelScope: String,
+        profileId: Int,
+        channels: List<LiveTvChannel>,
+        programmesByChannel: Map<String, List<com.nuvio.tv.domain.model.LiveTvProgramme>>
+    ) {
+        val existing = queryExistingPrograms(channelId)
+        val desiredKeys = channels.map { "live:${it.id}:${it.streamUrl}" }.toSet()
+        removeStalePrograms(existing, desiredKeys, channelScope)
+        val now = System.currentTimeMillis()
+        channels.forEachIndexed { index, channel ->
+            val key = "live:${channel.id}:${channel.streamUrl}"
+            val currentProgramme = programmesByChannel[channel.id]
+                ?.firstOrNull { it.startMillis <= now && it.endMillis > now }
+            val intentUri = Uri.parse(
+                Intent(context, MainActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    putExtra("launchMode", "direct_stream")
+                    putExtra("profileId", profileId)
+                    putExtra("contentId", channel.id)
+                    putExtra("contentType", "channel")
+                    putExtra("name", channel.name)
+                    putExtra("streamUrl", channel.streamUrl)
+                    putExtra("poster", channel.logoUrl)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }.toUri(Intent.URI_INTENT_SCHEME)
+            )
+            val builder = PreviewProgram.Builder()
+                .setChannelId(channelId)
+                .setType(TvContractCompat.PreviewPrograms.TYPE_TV_EPISODE)
+                .setTitle(channel.name)
+                .setDescription(currentProgramme?.title)
+                .setIntentUri(intentUri)
+                .setInternalProviderId(key)
+                .setWeight(Int.MAX_VALUE - index)
+            (currentProgramme?.iconUrl ?: channel.logoUrl)?.let {
+                builder.setPosterArtUri(Uri.parse(it))
+                    .setPosterArtAspectRatio(TvContractCompat.PreviewPrograms.ASPECT_RATIO_16_9)
+            }
+            val values = builder.build().toContentValues().also {
+                it.put("last_engagement_time_utc_millis", now)
+            }
+            upsertProgram(existing[key], values, key)
+        }
+    }
+
+    private fun removeStalePrograms(
+        existing: Map<String, List<Long>>,
+        desiredKeys: Set<String>,
+        channelScope: String
+    ) {
+        existing.filterKeys { it !in desiredKeys }.forEach { (key, rowIds) ->
+            rowIds.forEach { context.contentResolver.delete(TvContractCompat.buildPreviewProgramUri(it), null, null) }
+            syncedProgramFingerprints.remove("$channelScope:$key")
+        }
+    }
+
+    private fun upsertProgram(rowIds: List<Long>?, values: ContentValues, key: String) {
+        if (rowIds.isNullOrEmpty()) {
+            context.contentResolver.insert(TvContractCompat.PreviewPrograms.CONTENT_URI, values)
+        } else {
+            context.contentResolver.update(TvContractCompat.buildPreviewProgramUri(rowIds.first()), values, null, null)
+            rowIds.drop(1).forEach {
+                context.contentResolver.delete(TvContractCompat.buildPreviewProgramUri(it), null, null)
+            }
+        }
+        Log.d(TAG, "Reconciled program key=$key")
+    }
+
+    private fun stableKey(value: String): String =
+        value.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').take(56) +
+            "_${Integer.toHexString(value.hashCode())}"
 }

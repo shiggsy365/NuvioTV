@@ -90,6 +90,17 @@ class TraktSettingsDataStore @Inject constructor(
         }
     }
 
+    suspend fun getContinueWatchingDaysCap(profileId: Int): Int =
+        normalizeContinueWatchingDaysCap(
+            store(profileId).data.first()[continueWatchingDaysCapKey]
+                ?: DEFAULT_CONTINUE_WATCHING_DAYS_CAP
+        )
+
+    suspend fun getDismissedNextUpKeys(profileId: Int): Set<String> =
+        store(profileId).data.first()[dismissedNextUpKeysKey]
+            .orEmpty()
+            .mapTo(mutableSetOf()) { it.substringBefore("|") }
+
     val showUnairedNextUp: Flow<Boolean> = profileManager.activeProfileId.flatMapLatest { pid ->
         factory.get(pid, FEATURE).data.map { prefs ->
             prefs[showUnairedNextUpKey] ?: DEFAULT_SHOW_UNAIRED_NEXT_UP

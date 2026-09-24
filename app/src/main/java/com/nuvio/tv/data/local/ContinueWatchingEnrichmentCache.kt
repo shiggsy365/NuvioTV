@@ -93,17 +93,16 @@ class ContinueWatchingEnrichmentCache @Inject constructor(
 
     // --- Next Up snapshot cache ---
 
-    private fun nextUpFile(): File {
-        val profileId = profileManager.activeProfileId.value
+    private fun nextUpFile(profileId: Int = profileManager.activeProfileId.value): File {
         val dir = File(context.filesDir, "cw_enrichment")
         dir.mkdirs()
         return File(dir, "nextup_${profileId}.json")
     }
 
-    suspend fun getNextUpSnapshot(): List<CachedNextUpItem> = withContext(Dispatchers.IO) {
+    suspend fun getNextUpSnapshot(profileId: Int = profileManager.activeProfileId.value): List<CachedNextUpItem> = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
-                val file = nextUpFile()
+                val file = nextUpFile(profileId)
                 if (!file.exists()) return@withContext emptyList()
                 gson.fromJson(file.readText(), object : TypeToken<List<CachedNextUpItem>>() {}.type)
                     ?: emptyList()
@@ -139,17 +138,16 @@ class ContinueWatchingEnrichmentCache @Inject constructor(
 
     // --- In-progress snapshot cache ---
 
-    private fun inProgressFile(): File {
-        val profileId = profileManager.activeProfileId.value
+    private fun inProgressFile(profileId: Int = profileManager.activeProfileId.value): File {
         val dir = File(context.filesDir, "cw_enrichment")
         dir.mkdirs()
         return File(dir, "inprogress_${profileId}.json")
     }
 
-    suspend fun getInProgressSnapshot(): List<CachedInProgressItem> = withContext(Dispatchers.IO) {
+    suspend fun getInProgressSnapshot(profileId: Int = profileManager.activeProfileId.value): List<CachedInProgressItem> = withContext(Dispatchers.IO) {
         mutex.withLock {
             try {
-                val file = inProgressFile()
+                val file = inProgressFile(profileId)
                 if (!file.exists()) return@withContext emptyList()
                 gson.fromJson(file.readText(), object : TypeToken<List<CachedInProgressItem>>() {}.type)
                     ?: emptyList()

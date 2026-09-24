@@ -36,11 +36,22 @@ class LiveTvRepository @Inject constructor(
     val guide: StateFlow<LiveTvGuide> = _guide.asStateFlow()
 
     suspend fun load(force: Boolean = false): Result<LiveTvGuide> = withContext(Dispatchers.IO) {
-        runCatching {
-            var settings = settingsStore.settings.first()
+        load(profileManager.activeProfileId.value, force, updateActiveGuide = true)
+    }
+
+    suspend fun load(profileId: Int, force: Boolean = false): Result<LiveTvGuide> =
+        withContext(Dispatchers.IO) { load(profileId, force, updateActiveGuide = false) }
+
+    private suspend fun load(
+        profileId: Int,
+        force: Boolean,
+        updateActiveGuide: Boolean
+    ): Result<LiveTvGuide> {
+        return runCatching {
+            var settings = settingsStore.get(profileId)
             require(settings.playlistUrl.isNotBlank() && settings.epgUrl.isNotBlank()) { "Live TV sources are not configured" }
             val now = System.currentTimeMillis()
-            val directory = cacheDirectory()
+            val directory = cacheDirectory(profileId)
             val playlistFile = File(directory, "playlist.m3u")
             val epgFile = File(directory, "guide.xml")
             var playlistUpdated = settings.playlistUpdatedAt
@@ -58,14 +69,16 @@ class LiveTvRepository @Inject constructor(
             }
             if (playlistUpdated != settings.playlistUpdatedAt || epgUpdated != settings.epgUpdatedAt) {
                 settings = settings.copy(playlistUpdatedAt = playlistUpdated, epgUpdatedAt = epgUpdated)
-                settingsStore.save(settings)
+                settingsStore.save(profileId, settings)
             }
             val channels = M3uParser.parse(playlistFile.readText())
             require(channels.isNotEmpty()) { "The playlist contains no channels" }
             val programmes = epgFile.inputStream().buffered().use {
                 XmlTvParser.parse(it, now - PAST_WINDOW_MS, now + FUTURE_WINDOW_MS)
             }
-            LiveTvGuide(channels, programmes, now).also { _guide.value = it }
+            LiveTvGuide(channels, programmes, now).also {
+                if (updateActiveGuide && profileManager.activeProfileId.value == profileId) _guide.value = it
+            }
         }
     }
 
@@ -81,8 +94,8 @@ class LiveTvRepository @Inject constructor(
         }
     }
 
-    private fun cacheDirectory(): File = File(
+    private fun cacheDirectory(profileId: Int): File = File(
         context.filesDir,
-        "live_tv_p${profileManager.activeProfileId.value}"
+        "live_tv_p$profileId"
     ).apply { mkdirs() }
 }

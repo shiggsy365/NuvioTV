@@ -8,6 +8,9 @@ import com.nuvio.tv.data.local.ContinueWatchingEnrichmentCache
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.TraktSettingsDataStore
 import com.nuvio.tv.core.recommendations.TvRecommendationManager
+import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.data.livetv.LiveTvRepository
+import com.nuvio.tv.data.local.LiveTvSettingsDataStore
 import com.nuvio.tv.domain.model.WatchProgress
 import com.nuvio.tv.ui.screens.home.ContinueWatchingItem
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -45,7 +48,10 @@ class AndroidTvChannelSyncService @Inject constructor(
     private val cwEnrichmentCache: ContinueWatchingEnrichmentCache,
     private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
     private val traktSettingsDataStore: TraktSettingsDataStore,
-    private val tvRecommendationManager: TvRecommendationManager
+    private val tvRecommendationManager: TvRecommendationManager,
+    private val profileManager: ProfileManager,
+    private val liveTvRepository: LiveTvRepository,
+    private val liveTvSettingsDataStore: LiveTvSettingsDataStore
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -104,30 +110,50 @@ class AndroidTvChannelSyncService @Inject constructor(
      * Called both from the live observer and from [TvChannelRefreshJobService].
      */
     suspend fun reconcileFromCache(settings: ChannelSettingsSnapshot? = null) {
-        val resolvedSettings = settings ?: run {
-            val daysCap = traktSettingsDataStore.continueWatchingDaysCap.first()
-            val dismissed = traktSettingsDataStore.dismissedNextUpKeys.first()
-            val useEpisodeThumbnails = layoutPreferenceDataStore.useEpisodeThumbnailsInCw.first()
-            ChannelSettingsSnapshot(daysCap, dismissed, useEpisodeThumbnails)
+        val profiles = profileManager.profiles.value
+        val activeProfileId = profileManager.activeProfileId.value
+        val desiredChannelKeys = mutableSetOf<String>()
+        var activeChannelItems = emptyList<WatchProgress>()
+        var allLiveTvLoadsSucceeded = true
+
+        profiles.forEach { profile ->
+            val resolvedSettings = if (profile.id == activeProfileId && settings != null) settings else {
+                ChannelSettingsSnapshot(
+                    daysCap = traktSettingsDataStore.getContinueWatchingDaysCap(profile.id),
+                    dismissedNextUp = traktSettingsDataStore.getDismissedNextUpKeys(profile.id),
+                    useEpisodeThumbnails = layoutPreferenceDataStore.getUseEpisodeThumbnailsInCw(profile.id)
+                )
+            }
+            val inProgressItems = runCatching { cwEnrichmentCache.getInProgressSnapshot(profile.id) }
+                .getOrDefault(emptyList())
+            val nextUpItems = runCatching { cwEnrichmentCache.getNextUpSnapshot(profile.id) }
+                .getOrDefault(emptyList())
+            val channelItems = buildChannelItems(inProgressItems, nextUpItems, resolvedSettings)
+            manager.reconcileContinueWatching(profile.id, profile.name, channelItems)
+            desiredChannelKeys += "cw_profile_${profile.id}"
+            if (profile.id == activeProfileId) activeChannelItems = channelItems
+
+            val liveSettings = liveTvSettingsDataStore.get(profile.id)
+            if (liveSettings.isConfigured) {
+                liveTvRepository.load(profile.id).onSuccess { guide ->
+                    manager.reconcileLiveTv(
+                        profileId = profile.id,
+                        profileName = profile.name,
+                        guide = guide,
+                        prefixProfileName = profiles.size > 1
+                    )
+                    guide.groups.forEach { group ->
+                        desiredChannelKeys += "live_profile_${profile.id}_${stableChannelKey(group)}"
+                    }
+                }.onFailure {
+                    allLiveTvLoadsSucceeded = false
+                    Log.w(TAG, "Live TV channel sync failed for profile ${profile.id}", it)
+                }
+            }
         }
 
-        val inProgressItems = runCatching { cwEnrichmentCache.getInProgressSnapshot() }
-            .getOrDefault(emptyList())
-        val nextUpItems = runCatching { cwEnrichmentCache.getNextUpSnapshot() }
-            .getOrDefault(emptyList())
-
-        val channelItems = buildChannelItems(inProgressItems, nextUpItems, resolvedSettings)
-
-        Log.d(
-            TAG,
-            "Reconciling from cache: ${channelItems.size} items " +
-                "(${inProgressItems.size} in-progress, ${nextUpItems.size} next-up raw)"
-        )
-        manager.reconcile(channelItems)
-
-        runCatching {
-            tvRecommendationManager.updateWatchNext(channelItems)
-        }
+        if (allLiveTvLoadsSucceeded) manager.removeManagedChannelsExcept(desiredChannelKeys)
+        runCatching { tvRecommendationManager.updateWatchNext(activeChannelItems) }
     }
 
     /**
@@ -201,6 +227,10 @@ class AndroidTvChannelSyncService @Inject constructor(
         val useEpisodeThumbnails: Boolean
     )
 }
+
+private fun stableChannelKey(value: String): String =
+    value.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').take(56) +
+        "_${Integer.toHexString(value.hashCode())}"
 
 /**
  * Converts a [CachedInProgressItem] to [WatchProgress] for the launcher channel.

@@ -384,6 +384,8 @@ open class MainActivity : ComponentActivity() {
         val launchSeason = intent?.getIntExtra("season", -1)?.takeIf { it >= 0 }
         val launchEpisode = intent?.getIntExtra("episode", -1)?.takeIf { it >= 0 }
         val launchEpisodeTitle = intent?.getStringExtra("episodeTitle")
+        val launchProfileId = intent?.getIntExtra("profileId", -1)?.takeIf { it > 0 }
+        val launchStreamUrl = intent?.getStringExtra("streamUrl")
         captureDeepLinkIntent(intent)
 
         setContent {
@@ -898,8 +900,24 @@ open class MainActivity : ComponentActivity() {
 
                     // Navigate to content when launched from the Continue Watching channel row.
                     LaunchedEffect(navController) {
-                        if (launchContentId != null && launchContentType != null && layoutChosen) {
-                            if (launchMode == "stream" && launchVideoId != null && launchName != null) {
+                        if (launchMode == "live_tv" && layoutChosen) {
+                            navController.navigate(Screen.LiveTv.route) { launchSingleTop = true }
+                        } else if (launchContentId != null && launchContentType != null && layoutChosen) {
+                            launchProfileId?.let { profileManager.setActiveProfile(it) }
+                            if (launchMode == "direct_stream" && launchStreamUrl != null && launchName != null) {
+                                navController.navigate(
+                                    Screen.Player.createRoute(
+                                        streamUrl = launchStreamUrl,
+                                        title = launchName,
+                                        streamName = launchName,
+                                        contentId = launchContentId,
+                                        contentType = launchContentType,
+                                        contentName = launchName,
+                                        poster = launchPoster,
+                                        profileId = launchProfileId
+                                    )
+                                )
+                            } else if (launchMode == "stream" && launchVideoId != null && launchName != null) {
                                 navController.navigate(
                                     Screen.Stream.createRoute(
                                         videoId = launchVideoId,
@@ -914,7 +932,8 @@ open class MainActivity : ComponentActivity() {
                                         contentId = launchContentId,
                                         contentName = launchName,
                                         returnToDetailOnBack = launchContentType.equals("series", ignoreCase = true),
-                                        returnToHomeOnBack = true
+                                        returnToHomeOnBack = true,
+                                        profileId = launchProfileId
                                     )
                                 )
                             } else {
@@ -933,11 +952,31 @@ open class MainActivity : ComponentActivity() {
                         val intent = pendingLaunch ?: return@LaunchedEffect
                         if (!layoutChosen) return@LaunchedEffect
                         pendingLaunchIntent.value = null
+                        if (intent.getStringExtra("launchMode") == "live_tv") {
+                            navController.navigate(Screen.LiveTv.route) { launchSingleTop = true }
+                            return@LaunchedEffect
+                        }
                         val contentId = intent.getStringExtra("contentId") ?: return@LaunchedEffect
                         val contentType = intent.getStringExtra("contentType") ?: return@LaunchedEffect
                         val videoId = intent.getStringExtra("videoId")
                         val name = intent.getStringExtra("name")
-                        if (videoId != null && name != null) {
+                        val targetProfileId = intent.getIntExtra("profileId", -1).takeIf { it > 0 }
+                        targetProfileId?.let { profileManager.setActiveProfile(it) }
+                        val directStreamUrl = intent.getStringExtra("streamUrl")
+                        if (intent.getStringExtra("launchMode") == "direct_stream" && directStreamUrl != null && name != null) {
+                            navController.navigate(
+                                Screen.Player.createRoute(
+                                    streamUrl = directStreamUrl,
+                                    title = name,
+                                    streamName = name,
+                                    contentId = contentId,
+                                    contentType = contentType,
+                                    contentName = name,
+                                    poster = intent.getStringExtra("poster"),
+                                    profileId = targetProfileId
+                                )
+                            )
+                        } else if (videoId != null && name != null) {
                             navController.navigate(
                                 Screen.Stream.createRoute(
                                     videoId = videoId,
@@ -952,7 +991,8 @@ open class MainActivity : ComponentActivity() {
                                     contentId = contentId,
                                     contentName = name,
                                     returnToDetailOnBack = contentType.equals("series", ignoreCase = true),
-                                    returnToHomeOnBack = true
+                                    returnToHomeOnBack = true,
+                                    profileId = targetProfileId
                                 )
                             )
                         } else {
@@ -1307,9 +1347,13 @@ open class MainActivity : ComponentActivity() {
     }
 
     private fun captureLaunchIntent(intent: Intent?) {
-        val contentId = intent?.getStringExtra("contentId") ?: return
-        val launchMode = intent.getStringExtra("launchMode") ?: return
-        if (launchMode != "stream") return
+        val launchMode = intent?.getStringExtra("launchMode") ?: return
+        if (launchMode == "live_tv") {
+            pendingLaunchIntent.value = intent
+            return
+        }
+        intent.getStringExtra("contentId") ?: return
+        if (launchMode != "stream" && launchMode != "direct_stream") return
         pendingLaunchIntent.value = intent
     }
 

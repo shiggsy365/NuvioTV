@@ -9,6 +9,7 @@ import com.nuvio.tv.domain.model.LiveTvSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -41,6 +42,29 @@ class LiveTvSettingsDataStore @Inject constructor(
 
     suspend fun save(value: LiveTvSettings) {
         factory.get(profileManager.activeProfileId.value, "live_tv_settings").edit { prefs ->
+            prefs[Keys.enabled] = value.enabled
+            prefs[Keys.playlistUrl] = value.playlistUrl.trim()
+            prefs[Keys.epgUrl] = value.epgUrl.trim()
+            prefs[Keys.userAgent] = value.userAgent.trim().ifEmpty { "NuvioTV" }
+            prefs[Keys.playlistUpdatedAt] = value.playlistUpdatedAt
+            prefs[Keys.epgUpdatedAt] = value.epgUpdatedAt
+        }
+    }
+
+    suspend fun get(profileId: Int): LiveTvSettings {
+        val prefs = factory.get(profileId, "live_tv_settings").data.first()
+        return LiveTvSettings(
+            enabled = prefs[Keys.enabled] ?: false,
+            playlistUrl = prefs[Keys.playlistUrl].orEmpty(),
+            epgUrl = prefs[Keys.epgUrl].orEmpty(),
+            userAgent = prefs[Keys.userAgent] ?: "NuvioTV",
+            playlistUpdatedAt = prefs[Keys.playlistUpdatedAt] ?: 0,
+            epgUpdatedAt = prefs[Keys.epgUpdatedAt] ?: 0
+        )
+    }
+
+    suspend fun save(profileId: Int, value: LiveTvSettings) {
+        factory.get(profileId, "live_tv_settings").edit { prefs ->
             prefs[Keys.enabled] = value.enabled
             prefs[Keys.playlistUrl] = value.playlistUrl.trim()
             prefs[Keys.epgUrl] = value.epgUrl.trim()

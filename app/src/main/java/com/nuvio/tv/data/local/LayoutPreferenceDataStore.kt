@@ -360,6 +360,9 @@ class LayoutPreferenceDataStore @Inject constructor(
         prefs[useEpisodeThumbnailsInCwKey] ?: true
     }
 
+    suspend fun getUseEpisodeThumbnailsInCw(profileId: Int): Boolean =
+        store(profileId).data.first()[useEpisodeThumbnailsInCwKey] ?: true
+
     val showUnairedNextUp: Flow<Boolean> = profileFlow { prefs ->
         prefs[showUnairedNextUpKey] ?: true
     }
