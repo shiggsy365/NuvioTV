@@ -184,6 +184,7 @@ class HomeEnrichmentRepositoryBoundaryTest {
             libraryRepository = mockk(relaxed = true),
             metaRepository = metaRepository,
             collectionsDataStore = mockk(relaxed = true),
+            continueWatchingCategoryDataStore = mockk(relaxed = true),
             layoutPreferenceDataStore = mockk(relaxed = true),
             playerSettingsDataStore = mockk(relaxed = true),
             tmdbSettingsDataStore = mockk(relaxed = true),

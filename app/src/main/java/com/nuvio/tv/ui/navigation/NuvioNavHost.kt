@@ -1,6 +1,12 @@
 package com.nuvio.tv.ui.navigation
 
 import com.nuvio.tv.ui.theme.NuvioMotion
+import com.nuvio.tv.ui.components.PlaybackAvailabilityProvider
+import com.nuvio.tv.ui.components.LocalPlaybackAvailability
+import com.nuvio.tv.ui.components.canStream
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.nuvio.tv.R
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.EnterTransition
@@ -61,6 +67,19 @@ fun NuvioNavHost(
     startDestination: String = Screen.Home.route,
     hideBuiltInHeaders: Boolean = false
 ) {
+    PlaybackAvailabilityProvider {
+        PlaybackNavHost(navController, startDestination, hideBuiltInHeaders)
+    }
+}
+
+@Composable
+private fun PlaybackNavHost(
+    navController: NavHostController,
+    startDestination: String,
+    hideBuiltInHeaders: Boolean
+) {
+    val playbackAvailability = LocalPlaybackAvailability.current
+    val context = LocalContext.current
     fun isStreamToPlayer(from: String, to: String): Boolean {
         return from.startsWith("stream/") && to.startsWith("player/")
     }
@@ -210,15 +229,27 @@ fun NuvioNavHost(
                         )
                     )
                 },
-                onContinueWatchingClick = { item ->
+                onContinueWatchingClick = onContinueWatchingClick@{ item ->
+                    if (!playbackAvailability.canStream(item)) {
+                        Toast.makeText(context, R.string.playback_unavailable_message, Toast.LENGTH_SHORT).show()
+                        return@onContinueWatchingClick
+                    }
                     navController.navigate(createContinueWatchingRoute(item))
                 },
-                onContinueWatchingStartFromBeginning = { item ->
+                onContinueWatchingStartFromBeginning = onContinueWatchingStartFromBeginning@{ item ->
+                    if (!playbackAvailability.canStream(item)) {
+                        Toast.makeText(context, R.string.playback_unavailable_message, Toast.LENGTH_SHORT).show()
+                        return@onContinueWatchingStartFromBeginning
+                    }
                     navController.navigate(
                         createContinueWatchingRoute(item, startFromBeginning = true)
                     )
                 },
-                onContinueWatchingPlayManually = { item ->
+                onContinueWatchingPlayManually = onContinueWatchingPlayManually@{ item ->
+                    if (!playbackAvailability.canStream(item)) {
+                        Toast.makeText(context, R.string.playback_unavailable_message, Toast.LENGTH_SHORT).show()
+                        return@onContinueWatchingPlayManually
+                    }
                     navController.navigate(
                         createContinueWatchingRoute(item, manualSelection = true)
                     )
@@ -486,6 +517,11 @@ fun NuvioNavHost(
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
+                },
+                navArgument("profileId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 }
             )
         ) { backStackEntry ->
@@ -575,7 +611,8 @@ fun NuvioNavHost(
                                 infoHash = playbackInfo.infoHash,
                                 fileIdx = playbackInfo.fileIdx,
                                 sources = playbackInfo.sources,
-                                contentLanguage = playbackInfo.contentLanguage
+                                contentLanguage = playbackInfo.contentLanguage,
+                                profileId = playbackInfo.profileId
                             )
                         )
                     }
@@ -615,7 +652,8 @@ fun NuvioNavHost(
                                 infoHash = playbackInfo.infoHash,
                                 fileIdx = playbackInfo.fileIdx,
                                 sources = playbackInfo.sources,
-                                contentLanguage = playbackInfo.contentLanguage
+                                contentLanguage = playbackInfo.contentLanguage,
+                                profileId = playbackInfo.profileId
                             )
                         ) {
                             popUpTo(Screen.Stream.route) { inclusive = true }
@@ -761,6 +799,11 @@ fun NuvioNavHost(
                     defaultValue = null
                 },
                 navArgument("launchStartedAtMs") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("profileId") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
@@ -912,7 +955,8 @@ fun NuvioNavHost(
                                         contentName = args?.getString("contentName"),
                                         manualSelection = true,
                                         returnToDetailOnBack = returnToDetailOnBack,
-                                        returnToHomeOnBack = returnToHomeOnBack
+                                        returnToHomeOnBack = returnToHomeOnBack,
+                                        profileId = args?.getString("profileId")?.toIntOrNull()
                                     )
                                 ) {
                                     popUpTo(Screen.Stream.route) { inclusive = true }
@@ -965,7 +1009,8 @@ fun NuvioNavHost(
                             contentName = args?.getString("contentName"),
                             runtime = null,
                             returnToDetailOnBack = returnToDetailOnBack,
-                            returnToHomeOnBack = returnToHomeOnBack
+                            returnToHomeOnBack = returnToHomeOnBack,
+                            profileId = args?.getString("profileId")?.toIntOrNull()
                         )
                         navController.navigate(route) {
                             popUpTo(Screen.Player.route) { inclusive = true }
@@ -1093,7 +1138,8 @@ fun NuvioNavHost(
                                 returnToDetailOnBack = args?.getString("returnToDetailOnBack")
                                     ?.toBooleanStrictOrNull() == true,
                                 returnToHomeOnBack = args?.getString("returnToHomeOnBack")
-                                    ?.toBooleanStrictOrNull() == true
+                                    ?.toBooleanStrictOrNull() == true,
+                                profileId = args?.getString("profileId")?.toIntOrNull()
                             )
 
                             navController.navigate(route) {

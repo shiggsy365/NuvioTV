@@ -202,8 +202,6 @@ internal fun PlayerRuntimeController.updateAvailableTracks(tracks: Tracks) {
             append(currentVideoTrackSelected)
             append("|support=")
             append(Util.getFormatSupportString(currentVideoTrackBestSupport))
-            append("|vc1Fallback=")
-            append(isVc1SoftwareFallbackActiveForCurrentPlayback)
             append("|vc1TrackBypass=")
             append(isVc1TrackSelectionBypassActiveForCurrentPlayback)
         }
@@ -217,22 +215,19 @@ internal fun PlayerRuntimeController.updateAvailableTracks(tracks: Tracks) {
                         "vc1=$currentVideoTrackIsLikelyVc1 " +
                         "selected=$currentVideoTrackSelected " +
                         "support=${Util.getFormatSupportString(currentVideoTrackBestSupport)} " +
-                        "vc1FallbackActive=$isVc1SoftwareFallbackActiveForCurrentPlayback " +
                         "vc1TrackBypassActive=$isVc1TrackSelectionBypassActiveForCurrentPlayback"
             )
         }
         if (currentVideoTrackIsLikelyVc1 &&
             !currentVideoTrackSelected &&
-            isVc1SoftwareFallbackActiveForCurrentPlayback &&
             !isVc1TrackSelectionBypassActiveForCurrentPlayback
         ) {
             val currentPosition = _exoPlayer?.currentPosition ?: 0L
             vc1TrackSelectionBypassStreamUrls.add(currentStreamUrl)
             Log.w(
                 PlayerRuntimeController.TAG,
-                "VIDEO_TRACK: VC-1 track present but unselected after software-preferred retry, " +
-                        "forcing track-selection bypass support=${Util.getFormatSupportString(currentVideoTrackBestSupport)} " +
-                        "host=${Uri.parse(currentStreamUrl).host ?: "unknown"} positionMs=$currentPosition"
+                "VIDEO_TRACK: VC-1 present but unselected (audio-only); forcing video selection so the decoder can fail visibly " +
+                    "support=${Util.getFormatSupportString(currentVideoTrackBestSupport)} positionMs=$currentPosition"
             )
             retryCurrentStreamWithVc1TrackSelectionBypass(currentPosition)
             return
@@ -1009,12 +1004,14 @@ internal fun PlayerRuntimeController.applyPersistedTrackPreference(
             if (!alreadyDisabled) {
                 Log.d(PlayerRuntimeController.TAG, "TRACK_PREF restore: subtitle disabled (re-applying)")
                 autoSubtitleSelected = true
+                isUserExplicitSubtitleSelection = true
                 subtitleDisabledByPersistedPreference = true
                 disableSubtitles()
                 updatedSubtitleIndex = -1
             } else {
                 Log.d(PlayerRuntimeController.TAG, "TRACK_PREF restore: subtitle already disabled, clearing")
                 autoSubtitleSelected = true
+                isUserExplicitSubtitleSelection = true
                 subtitleDisabledByPersistedPreference = true
                 updatedSubtitleIndex = -1
                 updatedPending = updatedPending.copy(subtitle = null)
@@ -1052,12 +1049,14 @@ internal fun PlayerRuntimeController.applyPersistedTrackPreference(
                     if (!alreadySelected) {
                         Log.d(PlayerRuntimeController.TAG, "TRACK_PREF restore: internal subtitle index=$index (re-applying)")
                         autoSubtitleSelected = true
+                        isUserExplicitSubtitleSelection = true
                         selectSubtitleTrack(index)
                         updatedSubtitleIndex = index
                         updatedPending = updatedPending.copy(subtitle = null)
                     } else {
                         Log.d(PlayerRuntimeController.TAG, "TRACK_PREF restore: internal subtitle index=$index already selected, keeping for pipeline restart")
                         autoSubtitleSelected = true
+                        isUserExplicitSubtitleSelection = true
                         updatedSubtitleIndex = index
                     }
                 } else {
@@ -1096,6 +1095,7 @@ internal fun PlayerRuntimeController.applyPersistedTrackPreference(
                                 "TRACK_PREF restore: internal no match, falling back to addon lang=${addonFallback.lang} variant=$resolvedVariant"
                             )
                             autoSubtitleSelected = true
+                            isUserExplicitSubtitleSelection = true
                             subtitleAddonRestoredByPersistedPreference = true
                             pendingRestoredAddonSubtitle = addonFallback
                             selectAddonSubtitle(addonFallback)
@@ -1132,6 +1132,7 @@ internal fun PlayerRuntimeController.applyPersistedTrackPreference(
                     "Restoring same-series addon subtitle lang=${addonMatch.lang} id=${addonMatch.id}"
                 )
                 autoSubtitleSelected = true
+                isUserExplicitSubtitleSelection = true
                 subtitleAddonRestoredByPersistedPreference = true
                 pendingRestoredAddonSubtitle = addonMatch
                 selectAddonSubtitle(addonMatch)
@@ -1162,6 +1163,7 @@ internal fun PlayerRuntimeController.applyPersistedTrackPreference(
                             "addonPool=${state.addonSubtitles.size} isLoadingAddonSubtitles=${state.isLoadingAddonSubtitles}"
                     )
                     autoSubtitleSelected = true
+                    isUserExplicitSubtitleSelection = true
                     subtitleAddonRestoredByPersistedPreference = true
                 } else {
                     logSwitchTrace(
@@ -1175,6 +1177,7 @@ internal fun PlayerRuntimeController.applyPersistedTrackPreference(
                     // Reset auto-select flag in case it was set during the defer
                     // phase — allows tryAutoSelect to pick an embedded track.
                     autoSubtitleSelected = false
+                    isUserExplicitSubtitleSelection = false
                     subtitleAddonRestoredByPersistedPreference = false
                 }
             }
@@ -1914,6 +1917,7 @@ internal fun PlayerRuntimeController.startFrameRateProbe(
 }
 
 internal fun PlayerRuntimeController.applySubtitlePreferences(preferred: String, secondary: String?) {
+    if (isUserExplicitSubtitleSelection) return
     if (isUsingMpvEngine()) {
         mpvView?.applySubtitleLanguagePreferences(preferred, secondary)
         if (preferred == "none") {
