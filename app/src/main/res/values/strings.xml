@@ -2386,6 +2386,7 @@
     <string name="cd_subtitles">Subtitles</string>
     <string name="cd_audio_tracks">Audio tracks</string>
     <string name="cd_sources">Sources</string>
+    <string name="cd_live_stream_picker">Channel streams</string>
     <string name="cd_switch_player_engine">Switch player engine</string>
     <string name="cd_episodes">Episodes</string>
     <string name="cd_playback_speed">Playback speed</string>
