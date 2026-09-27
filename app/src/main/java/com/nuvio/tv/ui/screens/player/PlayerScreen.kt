@@ -284,6 +284,8 @@ fun PlayerScreen(
             viewModel.onEvent(PlayerEvent.OnDismissTransientOverlay)
         } else if (uiState.showStreamInfoOverlay) {
             dismissStreamInfoOverlay()
+        } else if (liveStreamPickerState.visible) {
+            onDismissLiveStreamPicker()
         } else if (uiState.showPauseOverlay) {
             viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay)
         } else if (uiState.showMoreDialog) {
@@ -294,8 +296,6 @@ fun PlayerScreen(
             viewModel.onEvent(PlayerEvent.OnHideSubtitleDelayOverlay)
         } else if (uiState.showSubtitleStylePanel) {
             viewModel.onEvent(PlayerEvent.OnDismissSubtitleStylePanel)
-        } else if (liveStreamPickerState.visible) {
-            onDismissLiveStreamPicker()
         } else if (uiState.showSourcesPanel) {
             if (uiState.currentStreamUrl.isNullOrBlank()) {
                 exitPlayer()
@@ -508,6 +508,11 @@ fun PlayerScreen(
     LaunchedEffect(uiState.showSubtitleTimingDialog) {
         if (!uiState.showSubtitleTimingDialog) {
             subtitleTimingConsumeNextConfirmKeyUp = false
+        }
+    }
+    LaunchedEffect(liveStreamPickerState.visible, uiState.showPauseOverlay) {
+        if (liveStreamPickerState.visible && uiState.showPauseOverlay) {
+            viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay)
         }
     }
     LaunchedEffect(uiState.showStreamInfoOverlay, uiState.showControls, uiState.showMoreDialog) {
@@ -1048,7 +1053,8 @@ fun PlayerScreen(
 
         PauseOverlay(
             visible = uiState.showPauseOverlay && uiState.error == null &&
-                !uiState.showLoadingOverlay && !postPlayRecommendationState.isVisible,
+                !uiState.showLoadingOverlay && !postPlayRecommendationState.isVisible &&
+                !liveStreamPickerState.visible,
             onClose = { viewModel.onEvent(PlayerEvent.OnDismissPauseOverlay) },
             title = uiState.title,
             logo = uiState.logo,
@@ -1204,7 +1210,8 @@ fun PlayerScreen(
                     !uiState.showSubtitleDelayOverlay &&
                     !uiState.showSubtitleTimingDialog &&
                     !uiState.showSpeedDialog &&
-                    !uiState.showMoreDialog
+                    !uiState.showMoreDialog &&
+                    !liveStreamPickerState.visible
             },
             controlsVisible = uiState.showControls,
             blurUnwatchedEpisodes = uiState.blurUnwatchedEpisodes,
@@ -1254,7 +1261,8 @@ fun PlayerScreen(
             !uiState.showSpeedDialog &&
             !uiState.showMoreDialog &&
             !uiState.showDisplayModeInfo &&
-            !postPlayRecommendationState.isVisible
+            !postPlayRecommendationState.isVisible &&
+            !liveStreamPickerState.visible
 
         AnimatedVisibility(
             visible = showClockOverlay,
@@ -1284,7 +1292,8 @@ fun PlayerScreen(
                 !uiState.showSubtitleOverlay &&
                 !uiState.showSpeedDialog &&
                 !postPlayRecommendationState.isVisible &&
-                uiState.postPlayMode !is PostPlayMode.StillWatching,
+                uiState.postPlayMode !is PostPlayMode.StillWatching &&
+                !liveStreamPickerState.visible,
             enter = fadeIn(animationSpec = tween(200)),
             exit = fadeOut(animationSpec = tween(200))
         ) {
@@ -1374,7 +1383,7 @@ fun PlayerScreen(
         }
 
         AnimatedVisibility(
-            visible = uiState.showStreamSourceIndicator,
+            visible = uiState.showStreamSourceIndicator && !liveStreamPickerState.visible,
             enter = fadeIn(animationSpec = tween(NuvioMotion.tokens.durations.fast)),
             exit = fadeOut(animationSpec = tween(NuvioMotion.tokens.durations.fast)),
             modifier = Modifier
