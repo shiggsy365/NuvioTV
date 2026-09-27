@@ -67,7 +67,7 @@ class DispatcharrClient @Inject constructor(
             val trimmed = token.trim()
             if (trimmed.isNotBlank()) {
                 header("Authorization", trimmed.authorizationHeader())
-                header("X-API-Key", trimmed)
+                header("X-API-Key", trimmed.apiKeyHeaderValue())
             }
         }.build()
         client.newCall(request).execute().use { response ->
@@ -84,12 +84,22 @@ class DispatcharrClient @Inject constructor(
         return "$baseUrl/${value.trimStart('/')}"
     }
 
+    private fun String.apiKeyHeaderValue(): String =
+        removePrefixIgnoreCase("ApiKey ")
+
     private fun String.authorizationHeader(): String =
-        if (startsWith("Bearer ", ignoreCase = true) || startsWith("Token ", ignoreCase = true)) {
+        if (startsWith("Bearer ", ignoreCase = true) ||
+            startsWith("Token ", ignoreCase = true) ||
+            startsWith("ApiKey ", ignoreCase = true) ||
+            startsWith("Basic ", ignoreCase = true)
+        ) {
             this
         } else {
-            "Bearer $this"
+            "ApiKey $this"
         }
+
+    private fun String.removePrefixIgnoreCase(prefix: String): String =
+        if (startsWith(prefix, ignoreCase = true)) drop(prefix.length).trim() else this
 
     private fun String.toJsonObject(): JSONObject {
         val trimmed = trim()
