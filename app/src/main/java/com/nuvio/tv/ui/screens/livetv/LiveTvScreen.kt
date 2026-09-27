@@ -13,6 +13,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
@@ -40,13 +41,15 @@ private data class FocusedGuideItem(val channel: LiveTvChannel, val programme: L
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun LiveTvScreen(
-    onPlay: (LiveTvChannel) -> Unit,
+    onPlay: (LiveTvChannel, LiveTvProgramme?) -> Unit,
     onBack: () -> Unit,
     viewModel: LiveTvViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val lastPlayedChannelId by viewModel.lastPlayedChannelId.collectAsStateWithLifecycle()
     val contentFocusRequester = LocalContentFocusRequester.current
-    var group by remember(state.guide.groups) { mutableStateOf(state.guide.groups.firstOrNull()) }
+    val lastPlayedChannelFocusRequester = remember { FocusRequester() }
+    var group by remember { mutableStateOf<String?>(null) }
     var focusedItem by remember { mutableStateOf<FocusedGuideItem?>(null) }
 
     BackHandler(onBack = onBack)
@@ -72,9 +75,17 @@ fun LiveTvScreen(
                 val timelineWidth = (maxWidth - channelWidth - gap).coerceAtLeast(1.dp)
                 val nowOffset = timelineWidth * ((now - windowStart).toFloat() / (windowEnd - windowStart))
                 val channels = state.guide.channels.filter { it.group == group }
+                val lastPlayedChannel = state.guide.channels.firstOrNull { it.id == lastPlayedChannelId }
 
-                LaunchedEffect(group, state.guide.loadedAt) {
-                    focusedItem = channels.firstOrNull()?.let { channel ->
+                LaunchedEffect(state.guide.loadedAt, state.guide.groups, lastPlayedChannelId) {
+                    group = lastPlayedChannel?.group
+                        ?: group?.takeIf { it in state.guide.groups }
+                        ?: state.guide.groups.firstOrNull()
+                }
+
+                LaunchedEffect(group, state.guide.loadedAt, lastPlayedChannelId) {
+                    val focusChannel = channels.firstOrNull { it.id == lastPlayedChannelId } ?: channels.firstOrNull()
+                    focusedItem = focusChannel?.let { channel ->
                         FocusedGuideItem(
                             channel,
                             state.guide.programmes.firstOrNull {
@@ -140,8 +151,12 @@ fun LiveTvScreen(
                                         windowStart = windowStart,
                                         windowEnd = windowEnd,
                                         channelWidth = channelWidth,
+                                        focusRequester = lastPlayedChannelFocusRequester.takeIf { channel.id == lastPlayedChannelId },
                                         onFocused = { focusedItem = FocusedGuideItem(channel, it) },
-                                        onPlay = { onPlay(channel) }
+                                        onPlay = { programme ->
+                                            viewModel.markChannelPlayed(channel.id)
+                                            onPlay(channel, programme)
+                                        }
                                     )
                                 }
                             }
@@ -155,9 +170,13 @@ fun LiveTvScreen(
                         )
                     }
                 }
-                LaunchedEffect(state.guide.loadedAt) {
+                LaunchedEffect(state.guide.loadedAt, group, lastPlayedChannelId) {
                     delay(120)
-                    runCatching { contentFocusRequester.requestFocus() }
+                    if (lastPlayedChannel != null && group == lastPlayedChannel.group) {
+                        runCatching { lastPlayedChannelFocusRequester.requestFocus() }
+                    } else {
+                        runCatching { contentFocusRequester.requestFocus() }
+                    }
                 }
             }
         }
@@ -237,19 +256,26 @@ private fun ChannelRow(
     windowStart: Long,
     windowEnd: Long,
     channelWidth: Dp,
+    focusRequester: FocusRequester?,
     onFocused: (LiveTvProgramme?) -> Unit,
-    onPlay: () -> Unit
+    onPlay: (LiveTvProgramme?) -> Unit
 ) {
     Row(Modifier.fillMaxWidth().height(40.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         ChannelIdentity(channel, Modifier.width(channelWidth).fillMaxHeight())
         val visible = programmes.filter { it.endMillis > windowStart && it.startMillis < windowEnd }
+        var focusRequesterApplied = false
+        fun focusModifier(modifier: Modifier): Modifier {
+            if (focusRequester == null || focusRequesterApplied) return modifier
+            focusRequesterApplied = true
+            return modifier.focusRequester(focusRequester)
+        }
         if (visible.isEmpty()) {
             ProgrammeCard(
                 title = "No Programme Information",
                 time = null,
-                modifier = Modifier.weight(1f).fillMaxHeight(),
+                modifier = focusModifier(Modifier.weight(1f).fillMaxHeight()),
                 onFocused = { onFocused(null) },
-                onClick = onPlay
+                onClick = { onPlay(null) }
             )
         } else {
             var cursor = windowStart
@@ -260,9 +286,11 @@ private fun ChannelRow(
                 ProgrammeCard(
                     title = item.title,
                     time = timeRange(item),
-                    modifier = Modifier.weight((end - start).coerceAtLeast(1).toFloat()).fillMaxHeight(),
+                    modifier = focusModifier(
+                        Modifier.weight((end - start).coerceAtLeast(1).toFloat()).fillMaxHeight()
+                    ),
                     onFocused = { onFocused(item) },
-                    onClick = onPlay
+                    onClick = { onPlay(item) }
                 )
                 cursor = end.coerceAtLeast(cursor)
             }

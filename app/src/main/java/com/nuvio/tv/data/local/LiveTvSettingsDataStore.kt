@@ -25,6 +25,9 @@ class LiveTvSettingsDataStore @Inject constructor(
         val userAgent = stringPreferencesKey("user_agent")
         val playlistUpdatedAt = longPreferencesKey("playlist_updated_at")
         val epgUpdatedAt = longPreferencesKey("epg_updated_at")
+        val dispatcharrEnabled = booleanPreferencesKey("dispatcharr_enabled")
+        val dispatcharrBaseUrl = stringPreferencesKey("dispatcharr_base_url")
+        val dispatcharrApiToken = stringPreferencesKey("dispatcharr_api_token")
     }
 
     val settings: Flow<LiveTvSettings> = profileManager.activeProfileId.flatMapLatest { id ->
@@ -35,7 +38,10 @@ class LiveTvSettingsDataStore @Inject constructor(
                 epgUrl = prefs[Keys.epgUrl].orEmpty(),
                 userAgent = prefs[Keys.userAgent] ?: "NuvioTV",
                 playlistUpdatedAt = prefs[Keys.playlistUpdatedAt] ?: 0,
-                epgUpdatedAt = prefs[Keys.epgUpdatedAt] ?: 0
+                epgUpdatedAt = prefs[Keys.epgUpdatedAt] ?: 0,
+                dispatcharrEnabled = prefs[Keys.dispatcharrEnabled] ?: false,
+                dispatcharrBaseUrl = prefs[Keys.dispatcharrBaseUrl].orEmpty(),
+                dispatcharrApiToken = prefs[Keys.dispatcharrApiToken].orEmpty()
             )
         }
     }
@@ -48,6 +54,9 @@ class LiveTvSettingsDataStore @Inject constructor(
             prefs[Keys.userAgent] = value.userAgent.trim().ifEmpty { "NuvioTV" }
             prefs[Keys.playlistUpdatedAt] = value.playlistUpdatedAt
             prefs[Keys.epgUpdatedAt] = value.epgUpdatedAt
+            prefs[Keys.dispatcharrEnabled] = value.dispatcharrEnabled
+            prefs[Keys.dispatcharrBaseUrl] = value.dispatcharrBaseUrl.trim().trimEnd('/')
+            prefs[Keys.dispatcharrApiToken] = value.dispatcharrApiToken.trim()
         }
     }
 
@@ -59,7 +68,10 @@ class LiveTvSettingsDataStore @Inject constructor(
             epgUrl = prefs[Keys.epgUrl].orEmpty(),
             userAgent = prefs[Keys.userAgent] ?: "NuvioTV",
             playlistUpdatedAt = prefs[Keys.playlistUpdatedAt] ?: 0,
-            epgUpdatedAt = prefs[Keys.epgUpdatedAt] ?: 0
+            epgUpdatedAt = prefs[Keys.epgUpdatedAt] ?: 0,
+            dispatcharrEnabled = prefs[Keys.dispatcharrEnabled] ?: false,
+            dispatcharrBaseUrl = prefs[Keys.dispatcharrBaseUrl].orEmpty(),
+            dispatcharrApiToken = prefs[Keys.dispatcharrApiToken].orEmpty()
         )
     }
 
@@ -71,6 +83,9 @@ class LiveTvSettingsDataStore @Inject constructor(
             prefs[Keys.userAgent] = value.userAgent.trim().ifEmpty { "NuvioTV" }
             prefs[Keys.playlistUpdatedAt] = value.playlistUpdatedAt
             prefs[Keys.epgUpdatedAt] = value.epgUpdatedAt
+            prefs[Keys.dispatcharrEnabled] = value.dispatcharrEnabled
+            prefs[Keys.dispatcharrBaseUrl] = value.dispatcharrBaseUrl.trim().trimEnd('/')
+            prefs[Keys.dispatcharrApiToken] = value.dispatcharrApiToken.trim()
         }
     }
 }

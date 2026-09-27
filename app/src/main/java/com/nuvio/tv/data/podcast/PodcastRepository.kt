@@ -32,6 +32,7 @@ class PodcastRepository @Inject constructor(
     private val library: PodcastLibraryDataStore
 ) {
     val subscribedFeedIds: Flow<Set<Long>> = library.subscribedFeedIds
+    val favouriteFeedIds: Flow<Set<Long>> = library.favouriteFeedIds
 
     suspend fun trending(): Result<List<Podcast>> = runCatching {
         val chart = chartsApi.topPodcasts()
@@ -49,6 +50,13 @@ class PodcastRepository @Inject constructor(
         api.lookup(feedId.toString()).results.firstOrNull()?.toModel() ?: error("Podcast not found")
     }
 
+    suspend fun podcasts(feedIds: Collection<Long>): Result<List<Podcast>> = runCatching {
+        if (feedIds.isEmpty()) return@runCatching emptyList()
+        val orderedIds = feedIds.toList()
+        val byId = api.lookup(orderedIds.joinToString(",")).results.associateBy { it.collectionId }
+        orderedIds.mapNotNull(byId::get).map(ApplePodcastDto::toModel)
+    }
+
     suspend fun episodes(feedId: Long): Result<List<PodcastEpisode>> = runCatching {
         val podcast = api.lookup(feedId.toString()).results.firstOrNull() ?: error("Podcast not found")
         val feedUrl = podcast.feedUrl?.takeIf(String::isNotBlank) ?: error("Podcast feed unavailable")
@@ -58,6 +66,8 @@ class PodcastRepository @Inject constructor(
     }
 
     suspend fun setSubscribed(feedId: Long, subscribed: Boolean) = library.setSubscribed(feedId, subscribed)
+
+    suspend fun setFavourite(feedId: Long, favourite: Boolean) = library.setFavourite(feedId, favourite)
 
     private suspend fun fetchAndParseFeed(feedId: Long, feedUrl: String, fallbackImage: String?): List<PodcastEpisode> =
         withContext(Dispatchers.IO) {

@@ -35,6 +35,13 @@ fun LiveTvSettingsScreen(onBack: () -> Unit, viewModel: LiveTvSettingsViewModel 
         }
         LiveTvTextField("M3U playlist URL", draft.playlistUrl) { draft = draft.copy(playlistUrl = it) }
         LiveTvTextField("XMLTV EPG URL", draft.epgUrl) { draft = draft.copy(epgUrl = it) }
+        Text("Dispatcharr", style = MaterialTheme.typography.titleLarge, color = NuvioTheme.colors.TextPrimary)
+        Text("Optional. Enables stream selection for channels backed by Dispatcharr.", color = NuvioTheme.colors.TextSecondary)
+        FocusButton("Stream picker: ${if (draft.dispatcharrEnabled) "On" else "Off"}") {
+            draft = draft.copy(dispatcharrEnabled = !draft.dispatcharrEnabled)
+        }
+        LiveTvTextField("Dispatcharr URL", draft.dispatcharrBaseUrl) { draft = draft.copy(dispatcharrBaseUrl = it) }
+        LiveTvTextField("API token", draft.dispatcharrApiToken) { draft = draft.copy(dispatcharrApiToken = it) }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             FocusButton("Save") { viewModel.save(draft, onBack) }
             FocusButton("Back", onBack)

@@ -812,6 +812,7 @@ private fun PlaybackNavHost(
         ) { backStackEntry ->
             val liveTvPlaybackViewModel: LiveTvPlaybackViewModel =
                 androidx.hilt.navigation.compose.hiltViewModel(backStackEntry)
+            val liveTvStreamPickerState by liveTvPlaybackViewModel.streamPickerState.collectAsStateWithLifecycle()
             fun popBackToStream(): Boolean {
                 val autoPlayNavigation = backStackEntry.arguments
                     ?.getString("autoPlayNav")
@@ -879,6 +880,34 @@ private fun PlaybackNavHost(
                                 launchSingleTop = true
                             }
                             true
+                        }
+                    }
+                },
+                liveStreamPickerState = liveTvStreamPickerState,
+                onShowLiveStreamPicker = {
+                    val args = backStackEntry.arguments
+                    if (args?.getString("contentType").equals("channel", ignoreCase = true)) {
+                        liveTvPlaybackViewModel.showStreamPicker(args?.getString("contentId").orEmpty())
+                    }
+                },
+                onDismissLiveStreamPicker = liveTvPlaybackViewModel::dismissStreamPicker,
+                onLiveStreamSelected = { streamUrl ->
+                    val args = backStackEntry.arguments
+                    if (args?.getString("contentType").equals("channel", ignoreCase = true)) {
+                        liveTvPlaybackViewModel.dismissStreamPicker()
+                        navController.navigate(
+                            Screen.Player.createRoute(
+                                streamUrl = streamUrl,
+                                title = args?.getString("title").orEmpty(),
+                                streamName = args?.getString("streamName"),
+                                contentId = args?.getString("contentId"),
+                                contentType = "channel",
+                                contentName = args?.getString("contentName"),
+                                poster = args?.getString("poster")
+                            )
+                        ) {
+                            popUpTo(Screen.Player.route) { inclusive = true }
+                            launchSingleTop = true
                         }
                     }
                 },
@@ -1226,10 +1255,10 @@ private fun PlaybackNavHost(
 
         composable(Screen.LiveTv.route) {
             LiveTvScreen(
-                onPlay = { channel ->
+                onPlay = { channel, programme ->
                     navController.navigate(
                         Screen.Player.createRoute(
-                            streamUrl = channel.streamUrl,
+                            streamUrl = channel.playbackUrl(programme),
                             title = channel.name,
                             streamName = channel.name,
                             contentId = channel.id,

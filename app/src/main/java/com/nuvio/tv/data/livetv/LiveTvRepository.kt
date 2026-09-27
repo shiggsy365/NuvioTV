@@ -5,6 +5,7 @@ import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.data.local.LiveTvSettingsDataStore
 import com.nuvio.tv.domain.model.LiveTvGuide
 import com.nuvio.tv.domain.model.LiveTvSettings
+import com.nuvio.tv.domain.model.LiveTvStreamOption
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +24,8 @@ class LiveTvRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val client: OkHttpClient,
     private val settingsStore: LiveTvSettingsDataStore,
-    private val profileManager: ProfileManager
+    private val profileManager: ProfileManager,
+    private val dispatcharrClient: DispatcharrClient
 ) {
     companion object {
         private const val PLAYLIST_REFRESH_MS = 24 * 60 * 60 * 1000L
@@ -34,6 +36,20 @@ class LiveTvRepository @Inject constructor(
 
     private val _guide = MutableStateFlow(LiveTvGuide())
     val guide: StateFlow<LiveTvGuide> = _guide.asStateFlow()
+    private val _lastPlayedChannelId = MutableStateFlow<String?>(null)
+    val lastPlayedChannelId: StateFlow<String?> = _lastPlayedChannelId.asStateFlow()
+
+    fun markChannelPlayed(channelId: String) {
+        if (channelId.isNotBlank()) _lastPlayedChannelId.value = channelId
+    }
+
+    suspend fun streamOptionsForChannel(channelId: String): Result<List<LiveTvStreamOption>> =
+        withContext(Dispatchers.IO) {
+            val settings = settingsStore.get(profileManager.activeProfileId.value)
+            val channel = _guide.value.channels.firstOrNull { it.id == channelId }
+                ?: return@withContext Result.failure(IllegalStateException("Channel is not loaded"))
+            dispatcharrClient.streamOptions(settings, channel)
+        }
 
     suspend fun load(force: Boolean = false): Result<LiveTvGuide> = withContext(Dispatchers.IO) {
         load(profileManager.activeProfileId.value, force, updateActiveGuide = true)

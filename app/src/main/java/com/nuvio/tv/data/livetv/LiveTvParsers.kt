@@ -30,7 +30,10 @@ object M3uParser {
                         streamUrl = line,
                         group = metadata["group-title"].orEmpty().ifBlank { "Other" },
                         logoUrl = metadata["tvg-logo"]?.takeIf(String::isNotBlank),
-                        number = metadata["tvg-chno"]?.takeIf(String::isNotBlank)
+                        number = metadata["tvg-chno"]?.takeIf(String::isNotBlank),
+                        catchup = metadata["catchup"]?.takeIf(String::isNotBlank),
+                        catchupSource = metadata["catchup-source"]?.takeIf(String::isNotBlank),
+                        catchupDays = metadata["catchup-days"]?.toIntOrNull()
                     )
                     info = null
                 }

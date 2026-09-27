@@ -133,6 +133,7 @@ import com.nuvio.tv.data.local.SubtitleStyleSettings
 import com.nuvio.tv.data.local.StreamAutoPlayMode
 import com.nuvio.tv.domain.model.Subtitle
 import com.nuvio.tv.domain.model.WatchProgress
+import com.nuvio.tv.ui.screens.livetv.LiveTvStreamPickerState
 import com.nuvio.tv.ui.components.LoadingIndicator
 import android.text.format.DateFormat
 import java.util.Date
@@ -151,6 +152,10 @@ import kotlin.math.abs
 fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
     onLiveChannelStep: (Int) -> Boolean = { false },
+    liveStreamPickerState: LiveTvStreamPickerState = LiveTvStreamPickerState(),
+    onShowLiveStreamPicker: () -> Unit = {},
+    onDismissLiveStreamPicker: () -> Unit = {},
+    onLiveStreamSelected: (String) -> Unit = {},
     onBackPress: (currentVideoId: String?, currentSeason: Int?, currentEpisode: Int?, autoPlayEnabled: Boolean, playbackCompleted: Boolean) -> Unit,
     onPlaybackErrorBack: () -> Unit = { onBackPress(null, null, null, false, false) },
     onPlaybackEnded: ((nextVideoId: String?, nextSeason: Int?, nextEpisode: Int?, exitReason: PlayerExitReason?) -> Unit)? = null,
@@ -171,6 +176,7 @@ fun PlayerScreen(
     val sourceStreamsFocusRequester = remember { FocusRequester() }
     val skipIntroFocusRequester = remember { FocusRequester() }
     val streamInfoFocusRequester = remember { FocusRequester() }
+    val liveStreamPickerFocusRequester = remember { FocusRequester() }
     val postPlayRecommendationFocusRequester = remember { FocusRequester() }
     val postPlayRecommendationPlayerWindowFocusRequester = remember { FocusRequester() }
     var skipButtonActuallyVisible by remember { mutableStateOf(false) }
@@ -288,6 +294,8 @@ fun PlayerScreen(
             viewModel.onEvent(PlayerEvent.OnHideSubtitleDelayOverlay)
         } else if (uiState.showSubtitleStylePanel) {
             viewModel.onEvent(PlayerEvent.OnDismissSubtitleStylePanel)
+        } else if (liveStreamPickerState.visible) {
+            onDismissLiveStreamPicker()
         } else if (uiState.showSourcesPanel) {
             if (uiState.currentStreamUrl.isNullOrBlank()) {
                 exitPlayer()
@@ -527,7 +535,7 @@ fun PlayerScreen(
             .focusRequester(containerFocusRequester)
             .focusable(enabled = uiState.error == null)
             .onPreviewKeyEvent { keyEvent ->
-                if (viewModel.playbackTimeline.value.isLive && !uiState.showControls &&
+                if (viewModel.playbackTimeline.value.isLive && !uiState.showControls && !liveStreamPickerState.visible &&
                     keyEvent.nativeKeyEvent.keyCode in listOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN)
                 ) {
                     if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
@@ -705,6 +713,7 @@ fun PlayerScreen(
                         uiState.showSubtitleStylePanel || uiState.showSpeedDialog ||
                         uiState.showSubtitleDelayOverlay || uiState.showSubtitleTimingDialog ||
                         uiState.showMoreDialog ||
+                        liveStreamPickerState.visible ||
                         shouldConfirmNextEpisodeOnEnd ||
                         uiState.postPlayMode is PostPlayMode.StillWatching ||
                         postPlayRecommendationState.isVisible ||
@@ -745,6 +754,14 @@ fun PlayerScreen(
                         return@onKeyEvent true
                     }
                     when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_MENU -> {
+                            if (uiState.contentType.equals("channel", ignoreCase = true)) {
+                                onShowLiveStreamPicker()
+                                true
+                            } else {
+                                false
+                            }
+                        }
                         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                             if (!uiState.showControls) {
                                 viewModel.onEvent(PlayerEvent.OnPlayPause)
@@ -1522,6 +1539,41 @@ fun PlayerScreen(
                     modifier = Modifier.align(Alignment.CenterEnd)
                 )
             }
+        }
+
+        // Live TV Dispatcharr stream picker
+        AnimatedVisibility(
+            visible = liveStreamPickerState.visible && uiState.error == null,
+            enter = fadeIn(animationSpec = tween(120)),
+            exit = fadeOut(animationSpec = tween(120))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+            )
+        }
+
+        AnimatedVisibility(
+            visible = liveStreamPickerState.visible && uiState.error == null,
+            enter = slideInHorizontally(
+                animationSpec = tween(220),
+                initialOffsetX = { it }
+            ),
+            exit = slideOutHorizontally(
+                animationSpec = tween(220),
+                targetOffsetX = { it }
+            )
+        ) {
+            LiveTvStreamPickerOverlay(
+                state = liveStreamPickerState,
+                focusRequester = liveStreamPickerFocusRequester,
+                onClose = onDismissLiveStreamPicker,
+                onSelect = { option ->
+                    option.url?.takeIf(String::isNotBlank)?.let(onLiveStreamSelected)
+                },
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         // Subtitle style panel scrim

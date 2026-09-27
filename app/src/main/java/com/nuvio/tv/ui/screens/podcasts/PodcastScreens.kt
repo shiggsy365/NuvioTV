@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -49,6 +50,8 @@ import javax.inject.Inject
 data class PodcastBrowseState(
     val loading: Boolean = true,
     val podcasts: List<Podcast> = emptyList(),
+    val favouritePodcasts: List<Podcast> = emptyList(),
+    val favouriteIds: Set<Long> = emptySet(),
     val subscribedIds: Set<Long> = emptySet(),
     val query: String = "",
     val error: String? = null
@@ -63,6 +66,18 @@ class PodcastBrowseViewModel @Inject constructor(private val repository: Podcast
     init {
         viewModelScope.launch {
             repository.subscribedFeedIds.collect { ids -> _state.update { it.copy(subscribedIds = ids) } }
+        }
+        viewModelScope.launch {
+            repository.favouriteFeedIds.collect { ids ->
+                _state.update { it.copy(favouriteIds = ids) }
+                if (ids.isEmpty()) {
+                    _state.update { it.copy(favouritePodcasts = emptyList()) }
+                } else {
+                    repository.podcasts(ids).onSuccess { podcasts ->
+                        _state.update { it.copy(favouritePodcasts = podcasts) }
+                    }
+                }
+            }
         }
         refresh()
     }
@@ -96,6 +111,7 @@ data class PodcastDetailState(
     val episodes: List<PodcastEpisode> = emptyList(),
     val progress: Map<String, WatchProgress> = emptyMap(),
     val subscribed: Boolean = false,
+    val favourite: Boolean = false,
     val error: String? = null
 )
 
@@ -112,6 +128,9 @@ class PodcastDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             repository.subscribedFeedIds.collect { ids -> _state.update { it.copy(subscribed = feedId in ids) } }
+        }
+        viewModelScope.launch {
+            repository.favouriteFeedIds.collect { ids -> _state.update { it.copy(favourite = feedId in ids) } }
         }
         viewModelScope.launch {
             progressRepository.allProgress.collect { items ->
@@ -151,6 +170,10 @@ class PodcastDetailViewModel @Inject constructor(
 
     fun toggleSubscription() = viewModelScope.launch {
         repository.setSubscribed(feedId, !_state.value.subscribed)
+    }
+
+    fun toggleFavourite() = viewModelScope.launch {
+        repository.setFavourite(feedId, !_state.value.favourite)
     }
 }
 
@@ -198,17 +221,48 @@ fun PodcastsScreen(
                 Button(onClick = viewModel::refresh) { Text("Retry") }
             }
             else -> {
+                val showingFavourites = state.query.isBlank() && state.favouritePodcasts.isNotEmpty()
                 Text(
                     if (state.query.isBlank()) "Trending" else "Search results",
                     style = MaterialTheme.typography.titleLarge,
                     color = NuvioTheme.colors.TextPrimary
                 )
-                LaunchedEffect(state.loading, state.podcasts) {
-                    if (!initialTrendingFocusRequested && state.query.isBlank() && !state.loading && state.podcasts.isNotEmpty()) {
+                LaunchedEffect(state.loading, state.podcasts, state.favouritePodcasts) {
+                    if (!initialTrendingFocusRequested && state.query.isBlank() && !state.loading &&
+                        (state.favouritePodcasts.isNotEmpty() || state.podcasts.isNotEmpty())
+                    ) {
                         delay(120)
                         runCatching { focusRequester.requestFocus() }
                         initialTrendingFocusRequested = true
                     }
+                }
+                if (showingFavourites) {
+                    Text(
+                        "Favourites",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = NuvioTheme.colors.TextPrimary
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(bottom = 4.dp)
+                    ) {
+                        items(state.favouritePodcasts, key = Podcast::id) { podcast ->
+                            PodcastCard(
+                                podcast = podcast,
+                                onClick = { onPodcast(podcast.id) },
+                                modifier = if (podcast == state.favouritePodcasts.firstOrNull()) {
+                                    Modifier.focusRequester(focusRequester)
+                                } else {
+                                    Modifier
+                                }
+                            )
+                        }
+                    }
+                    Text(
+                        "Trending",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = NuvioTheme.colors.TextPrimary
+                    )
                 }
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 148.dp),
@@ -221,7 +275,11 @@ fun PodcastsScreen(
                         PodcastCard(
                             podcast = podcast,
                             onClick = { onPodcast(podcast.id) },
-                            modifier = if (podcast == state.podcasts.firstOrNull()) Modifier.focusRequester(focusRequester) else Modifier
+                            modifier = if (!showingFavourites && podcast == state.podcasts.firstOrNull()) {
+                                Modifier.focusRequester(focusRequester)
+                            } else {
+                                Modifier
+                            }
                         )
                     }
                 }
@@ -280,6 +338,7 @@ fun PodcastDetailScreen(
                         AsyncImage(model = podcast.imageUrl, contentDescription = podcast.title, modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop)
                         Text(podcast.title, style = MaterialTheme.typography.headlineSmall, color = NuvioTheme.colors.TextPrimary)
                         Text(podcast.author, color = NuvioTheme.colors.TextSecondary)
+                        Button(onClick = viewModel::toggleFavourite) { Text(if (state.favourite) "Remove favourite" else "Favourite") }
                         Button(onClick = viewModel::toggleSubscription) { Text(if (state.subscribed) "Unsubscribe" else "Subscribe") }
                     }
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {

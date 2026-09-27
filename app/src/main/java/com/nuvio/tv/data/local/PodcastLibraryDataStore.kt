@@ -16,6 +16,7 @@ class PodcastLibraryDataStore @Inject constructor(
     private val profileManager: ProfileManager
 ) {
     private val subscriptionsKey = stringSetPreferencesKey("subscribed_feed_ids")
+    private val favouritesKey = stringSetPreferencesKey("favourite_feed_ids")
     private val menuEnabledKey = booleanPreferencesKey("podcasts_menu_enabled")
 
     val menuEnabled: Flow<Boolean> = profileManager.activeProfileId.flatMapLatest { profileId ->
@@ -30,11 +31,25 @@ class PodcastLibraryDataStore @Inject constructor(
         }
     }
 
+    val favouriteFeedIds: Flow<Set<Long>> = profileManager.activeProfileId.flatMapLatest { profileId ->
+        factory.get(profileId, "podcast_library").data.map { preferences ->
+            preferences[favouritesKey].orEmpty().mapNotNull(String::toLongOrNull).toSet()
+        }
+    }
+
     suspend fun setSubscribed(feedId: Long, subscribed: Boolean) {
         factory.get(profileManager.activeProfileId.value, "podcast_library").edit { preferences ->
             val values = preferences[subscriptionsKey].orEmpty().toMutableSet()
             if (subscribed) values += feedId.toString() else values -= feedId.toString()
             preferences[subscriptionsKey] = values
+        }
+    }
+
+    suspend fun setFavourite(feedId: Long, favourite: Boolean) {
+        factory.get(profileManager.activeProfileId.value, "podcast_library").edit { preferences ->
+            val values = preferences[favouritesKey].orEmpty().toMutableSet()
+            if (favourite) values += feedId.toString() else values -= feedId.toString()
+            preferences[favouritesKey] = values
         }
     }
 
