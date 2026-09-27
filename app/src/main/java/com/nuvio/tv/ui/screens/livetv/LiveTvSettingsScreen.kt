@@ -2,6 +2,8 @@ package com.nuvio.tv.ui.screens.livetv
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
@@ -27,7 +29,14 @@ fun LiveTvSettingsScreen(onBack: () -> Unit, viewModel: LiveTvSettingsViewModel 
     val message by viewModel.message.collectAsStateWithLifecycle()
     var draft by remember(stored) { mutableStateOf(stored) }
     BackHandler(onBack = onBack)
-    Column(Modifier.fillMaxSize().background(NuvioTheme.colors.Background).padding(48.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(NuvioTheme.colors.Background)
+            .verticalScroll(rememberScrollState())
+            .padding(48.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
         Text("Live TV", style = MaterialTheme.typography.headlineLarge, color = NuvioTheme.colors.TextPrimary)
         Text("Configure this profile's extended M3U playlist and XMLTV programme guide.", color = NuvioTheme.colors.TextSecondary)
         FocusButton("Show Live TV in the menu: ${if (draft.enabled) "On" else "Off"}") {

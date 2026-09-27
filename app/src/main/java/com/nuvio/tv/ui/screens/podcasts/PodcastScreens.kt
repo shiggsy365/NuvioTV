@@ -243,7 +243,7 @@ fun PodcastsScreen(
                         color = NuvioTheme.colors.TextPrimary
                     )
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(bottom = 4.dp)
                     ) {
                         items(state.favouritePodcasts, key = Podcast::id) { podcast ->
@@ -265,11 +265,11 @@ fun PodcastsScreen(
                     )
                 }
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 148.dp),
+                    columns = GridCells.Adaptive(minSize = 124.dp),
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     gridItems(state.podcasts, key = Podcast::id) { podcast ->
                         PodcastCard(
@@ -293,7 +293,7 @@ fun PodcastsScreen(
 private fun PodcastCard(podcast: Podcast, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         onClick = onClick,
-        modifier = modifier.width(148.dp).height(198.dp),
+        modifier = modifier.size(124.dp),
         colors = CardDefaults.colors(
             containerColor = NuvioTheme.colors.BackgroundCard,
             focusedContainerColor = NuvioTheme.colors.FocusBackground
@@ -304,17 +304,12 @@ private fun PodcastCard(podcast: Podcast, onClick: () -> Unit, modifier: Modifie
         ),
         shape = CardDefaults.shape(shape = RoundedCornerShape(10.dp))
     ) {
-        Column {
-            AsyncImage(
-                model = podcast.imageUrl,
-                contentDescription = podcast.title,
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                contentScale = ContentScale.Crop
-            )
-            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(podcast.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-        }
+        AsyncImage(
+            model = podcast.imageUrl,
+            contentDescription = podcast.title,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
     }
 }
 
