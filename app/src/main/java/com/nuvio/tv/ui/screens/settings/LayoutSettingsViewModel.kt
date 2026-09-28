@@ -46,6 +46,7 @@ data class LayoutSettingsUiState(
     val sidebarCollapsedByDefault: Boolean = false,
     val modernSidebarEnabled: Boolean = false,
     val modernSidebarBlurEnabled: Boolean = false,
+    val libraryMenuVisible: Boolean = true,
     val modernLandscapePostersEnabled: Boolean = false,
     val modernHeroFullScreenBackdropEnabled: Boolean = false,
     val heroSectionEnabled: Boolean = true,
@@ -96,6 +97,7 @@ sealed class LayoutSettingsEvent {
     data class SetSidebarCollapsed(val collapsed: Boolean) : LayoutSettingsEvent()
     data class SetModernSidebarEnabled(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetModernSidebarBlurEnabled(val enabled: Boolean) : LayoutSettingsEvent()
+    data class SetLibraryMenuVisible(val visible: Boolean) : LayoutSettingsEvent()
     data class SetModernLandscapePostersEnabled(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetModernHeroFullScreenBackdropEnabled(val enabled: Boolean) : LayoutSettingsEvent()
     data class SetHeroSectionEnabled(val enabled: Boolean) : LayoutSettingsEvent()
@@ -205,6 +207,11 @@ class LayoutSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             layoutPreferenceDataStore.modernSidebarBlurEnabled.distinctUntilChanged().collectLatest { enabled ->
                 updateUiStateIfChanged { it.copy(modernSidebarBlurEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            layoutPreferenceDataStore.libraryMenuVisible.distinctUntilChanged().collectLatest { visible ->
+                updateUiStateIfChanged { it.copy(libraryMenuVisible = visible) }
             }
         }
         viewModelScope.launch {
@@ -398,6 +405,7 @@ class LayoutSettingsViewModel @Inject constructor(
             is LayoutSettingsEvent.SetSidebarCollapsed -> setSidebarCollapsed(event.collapsed)
             is LayoutSettingsEvent.SetModernSidebarEnabled -> setModernSidebarEnabled(event.enabled)
             is LayoutSettingsEvent.SetModernSidebarBlurEnabled -> setModernSidebarBlurEnabled(event.enabled)
+            is LayoutSettingsEvent.SetLibraryMenuVisible -> setLibraryMenuVisible(event.visible)
             is LayoutSettingsEvent.SetModernLandscapePostersEnabled -> setModernLandscapePostersEnabled(event.enabled)
             is LayoutSettingsEvent.SetModernHeroFullScreenBackdropEnabled -> setModernHeroFullScreenBackdropEnabled(event.enabled)
             is LayoutSettingsEvent.SetHeroSectionEnabled -> setHeroSectionEnabled(event.enabled)
@@ -547,6 +555,13 @@ class LayoutSettingsViewModel @Inject constructor(
         if (_uiState.value.modernSidebarBlurEnabled == enabled) return
         viewModelScope.launch {
             layoutPreferenceDataStore.setModernSidebarBlurEnabled(enabled)
+        }
+    }
+
+    private fun setLibraryMenuVisible(visible: Boolean) {
+        if (_uiState.value.libraryMenuVisible == visible) return
+        viewModelScope.launch {
+            layoutPreferenceDataStore.setLibraryMenuVisible(visible)
         }
     }
 

@@ -45,10 +45,30 @@ class LiveTvViewModel @Inject constructor(private val repository: LiveTvReposito
 }
 
 @HiltViewModel
-class LiveTvSettingsViewModel @Inject constructor(private val store: LiveTvSettingsDataStore) : ViewModel() {
+class LiveTvSettingsViewModel @Inject constructor(
+    private val store: LiveTvSettingsDataStore,
+    private val repository: LiveTvRepository
+) : ViewModel() {
     val settings = store.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LiveTvSettings())
     private val _message = MutableStateFlow<String?>(null)
     val message = _message.asStateFlow()
+    private val _importing = MutableStateFlow(false)
+    val importing = _importing.asStateFlow()
+    fun reimport() = viewModelScope.launch {
+        if (_importing.value) return@launch
+        _importing.value = true
+        _message.value = "Re-importing Live TV data..."
+        repository.load(force = true).fold(
+            onSuccess = { guide ->
+                _message.value = "Re-imported " + guide.channels.size + " channels and " + guide.programmes.size + " guide entries"
+            },
+            onFailure = { error ->
+                _message.value = error.message ?: "Unable to re-import Live TV data"
+            }
+        )
+        _importing.value = false
+    }
+
     fun save(value: LiveTvSettings, onSaved: () -> Unit = {}) = viewModelScope.launch {
         val valid = listOf(value.playlistUrl, value.epgUrl, value.dispatcharrBaseUrl).all { url ->
             url.isBlank() || runCatching { val parsed = java.net.URI(url); parsed.scheme in setOf("http", "https") && parsed.host != null }.getOrDefault(false)

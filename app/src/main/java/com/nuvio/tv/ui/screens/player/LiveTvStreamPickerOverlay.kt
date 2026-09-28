@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nuvio.tv.domain.model.LiveTvStreamOption
@@ -40,6 +41,11 @@ internal fun LiveTvStreamPickerOverlay(
     onSelect: (LiveTvStreamOption) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    LaunchedEffect(state.visible, state.loading, state.options.size, state.error) {
+        if (state.visible && (state.loading || state.error != null || state.options.isEmpty())) {
+            runCatching { focusRequester.requestFocus() }
+        }
+    }
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.CenterEnd
@@ -47,6 +53,7 @@ internal fun LiveTvStreamPickerOverlay(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
+                .focusGroup()
                 .width(520.dp)
                 .clip(RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg))
                 .background(NuvioTheme.colors.BackgroundElevated)
@@ -88,8 +95,10 @@ internal fun LiveTvStreamPickerOverlay(
                 )
                 else -> {
                     val firstItemFocusRequester = remember(state.options) { FocusRequester() }
-                    LaunchedEffect(state.options) {
-                        runCatching { firstItemFocusRequester.requestFocus() }
+                    LaunchedEffect(state.visible, state.options) {
+                        if (state.visible) {
+                            runCatching { firstItemFocusRequester.requestFocus() }
+                        }
                     }
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)) {
                         itemsIndexed(state.options, key = { _, item -> item.id }) { index, item ->

@@ -248,6 +248,7 @@ private data class MainUiPrefs(
     val modernSidebarEnabled: Boolean = false,
     val modernSidebarBlurPref: Boolean = false,
     val discoverLocation: DiscoverLocation? = null,
+    val libraryMenuVisible: Boolean = true,
     val smoothBringIntoViewEnabled: Boolean = true,
     val fastHorizontalNavigationEnabled: Boolean = false,
     val composeHighlighterEnabled: Boolean = false,
@@ -528,7 +529,7 @@ open class MainActivity : ComponentActivity() {
                         experienceModeLoaded = true,
                     )
                 }
-                val layoutAndFeaturesFlow = combine(
+                val baseLayoutAndFeaturesFlow = combine(
                     layoutPreferenceDataStore.hasChosenLayout,
                     layoutPreferenceDataStore.sidebarCollapsedByDefault,
                     layoutPreferenceDataStore.modernSidebarEnabled,
@@ -542,6 +543,12 @@ open class MainActivity : ComponentActivity() {
                         modernSidebarBlurPref = modernSidebarBlurPref,
                         discoverLocation = discoverLocation,
                     )
+                }
+                val layoutAndFeaturesFlow = combine(
+                    baseLayoutAndFeaturesFlow,
+                    layoutPreferenceDataStore.libraryMenuVisible
+                ) { layoutPrefs, libraryMenuVisible ->
+                    layoutPrefs.copy(libraryMenuVisible = libraryMenuVisible)
                 }
                 val extraFeaturesFlow = combine(
                     experienceModeDataStore.addonSetupSkipped,
@@ -570,6 +577,7 @@ open class MainActivity : ComponentActivity() {
                         modernSidebarEnabled = layoutPrefs.modernSidebarEnabled,
                         modernSidebarBlurPref = layoutPrefs.modernSidebarBlurPref,
                         discoverLocation = layoutPrefs.discoverLocation,
+                        libraryMenuVisible = layoutPrefs.libraryMenuVisible,
                         addonSetupSkipped = extraPrefs.addonSetupSkipped,
                         smoothBringIntoViewEnabled = extraPrefs.smoothBringIntoViewEnabled,
                         fastHorizontalNavigationEnabled = extraPrefs.fastHorizontalNavigationEnabled,
@@ -1091,7 +1099,8 @@ open class MainActivity : ComponentActivity() {
                         strNavSettings,
                         discoverLocation,
                         showLiveTv,
-                        showPodcasts
+                        showPodcasts,
+                        mainUiPrefs.libraryMenuVisible
                     ) {
                         buildList {
                             add(
@@ -1135,26 +1144,34 @@ open class MainActivity : ComponentActivity() {
                                     iconRes = R.raw.sidebar_search
                                 )
                             )
-                            add(
-                                DrawerItem(
-                                    route = Screen.Library.route,
-                                    label = strNavLibrary,
-                                    iconRes = R.raw.sidebar_library
+                            if (mainUiPrefs.libraryMenuVisible) {
+                                add(
+                                    DrawerItem(
+                                        route = Screen.Library.route,
+                                        label = strNavLibrary,
+                                        iconRes = R.raw.sidebar_library
+                                    )
                                 )
-                            )
-                            add(
-                                DrawerItem(
-                                    route = Screen.Settings.route,
-                                    label = strNavSettings,
-                                    iconRes = R.raw.sidebar_settings
-                                )
-                            )
+                            }
                         }
                     }
-                    val selectedDrawerRoute = drawerItems.firstOrNull { item ->
-                        currentRoute == item.route || currentRoute?.startsWith("${item.route}/") == true
-                    }?.route
-                    val selectedDrawerItem = drawerItems.firstOrNull { it.route == selectedDrawerRoute } ?: drawerItems.first()
+                    val selectedDrawerRoute = if (currentRoute == Screen.Settings.route || currentRoute?.startsWith("${Screen.Settings.route}/") == true) {
+                        Screen.Settings.route
+                    } else {
+                        drawerItems.firstOrNull { item ->
+                            currentRoute == item.route || currentRoute?.startsWith("${item.route}/") == true
+                        }?.route
+                    }
+                    val selectedDrawerItem = drawerItems.firstOrNull { it.route == selectedDrawerRoute }
+                        ?: if (selectedDrawerRoute == Screen.Settings.route) {
+                            DrawerItem(
+                                route = Screen.Settings.route,
+                                label = strNavSettings,
+                                iconRes = R.raw.sidebar_settings
+                            )
+                        } else {
+                            drawerItems.first()
+                        }
 
                     val confirmExitEnabled by profileManager.confirmExitEnabled.collectAsState()
                     var backPressedOnce by remember { mutableStateOf(false) }
@@ -1217,6 +1234,7 @@ open class MainActivity : ComponentActivity() {
                                     sidebarCollapsed = sidebarCollapsed,
                                     modernSidebarBlurEnabled = modernSidebarBlurEnabled,
                                     hideBuiltInHeaders = hideBuiltInHeadersForFloatingPill,
+                                    settingsLabel = strNavSettings,
                                     activeProfileName = activeProfile?.name ?: "",
                                     activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
                                     activeProfileAvatarImageUrl = activeProfileAvatarImageUrl,
@@ -1843,6 +1861,7 @@ private fun ModernSidebarScaffold(
     selectedDrawerItem: DrawerItem,
     sidebarCollapsed: Boolean,
     modernSidebarBlurEnabled: Boolean,
+    settingsLabel: String,
     hideBuiltInHeaders: Boolean,
     activeProfileName: String,
     activeProfileColorHex: String,
@@ -2213,6 +2232,20 @@ private fun ModernSidebarScaffold(
                                 navController = navController,
                                 currentRoute = currentRoute,
                                 targetRoute = targetRoute
+                            )
+                            pendingSidebarFocusRequest = false
+                            isSidebarExpanded = false
+                            sidebarCollapsePending = false
+                            pendingContentFocusTransfer = true
+                        },
+                        settingsLabel = settingsLabel,
+                        onSettingsClick = {
+                            keyboardController?.hide()
+                            onNavigate(Screen.Settings.route)
+                            navigateToDrawerRoute(
+                                navController = navController,
+                                currentRoute = currentRoute,
+                                targetRoute = Screen.Settings.route
                             )
                             pendingSidebarFocusRequest = false
                             isSidebarExpanded = false

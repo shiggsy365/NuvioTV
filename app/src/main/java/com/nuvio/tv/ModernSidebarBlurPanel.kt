@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +47,7 @@ import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import com.nuvio.tv.ui.navigation.Screen
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import com.nuvio.tv.ui.components.AutoResizeText
@@ -88,6 +90,8 @@ internal fun ModernSidebarBlurPanel(
     drawerItemFocusRequesters: Map<String, FocusRequester>,
     onDrawerItemFocused: (Int) -> Unit,
     onDrawerItemClick: (String) -> Unit,
+    settingsLabel: String,
+    onSettingsClick: () -> Unit,
     activeProfileName: String,
     activeProfileColorHex: String,
     activeProfileAvatarImageUrl: String?,
@@ -228,12 +232,24 @@ internal fun ModernSidebarBlurPanel(
             }
         }
 
-        SidebarDateTime()
+        SidebarDateTime(
+            settingsLabel = settingsLabel,
+            settingsSelected = selectedDrawerRoute == Screen.Settings.route,
+            focusEnabled = keepSidebarFocusDuringCollapse,
+            onFocused = { onDrawerItemFocused(drawerItems.lastIndex) },
+            onSettingsClick = onSettingsClick
+        )
     }
 }
 
 @Composable
-private fun SidebarDateTime() {
+private fun SidebarDateTime(
+    settingsLabel: String,
+    settingsSelected: Boolean,
+    focusEnabled: Boolean,
+    onFocused: () -> Unit,
+    onSettingsClick: () -> Unit
+) {
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -244,13 +260,93 @@ private fun SidebarDateTime() {
     val formatted = remember(now) {
         SimpleDateFormat("EEE d MMM  •  HH:mm", Locale.getDefault()).format(Date(now))
     }
-    Text(
-        text = formatted,
-        modifier = Modifier.fillMaxWidth().padding(bottom = NuvioTheme.spacing.xs),
-        style = androidx.tv.material3.MaterialTheme.typography.bodySmall,
-        color = NuvioTheme.colors.TextSecondary,
-        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = NuvioTheme.spacing.sm, end = NuvioTheme.spacing.sm, bottom = NuvioTheme.spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
+    ) {
+        Text(
+            text = formatted,
+            modifier = Modifier.weight(1f),
+            style = androidx.tv.material3.MaterialTheme.typography.bodySmall,
+            color = NuvioTheme.colors.TextSecondary,
+            maxLines = 1
+        )
+        SidebarSettingsIcon(
+            label = settingsLabel,
+            selected = settingsSelected,
+            focusEnabled = focusEnabled,
+            onFocused = onFocused,
+            onClick = onSettingsClick
+        )
+    }
+}
+@Composable
+private fun SidebarSettingsIcon(
+    label: String,
+    selected: Boolean,
+    focusEnabled: Boolean,
+    onFocused: () -> Unit,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val colors = NuvioTheme.colors
+    val accentColor = NuvioTheme.palette.secondary
+    val backgroundColorTarget = when {
+        isFocused && selected -> accentColor.copy(alpha = 0.28f)
+        isFocused -> Color.White.copy(alpha = 0.12f)
+        selected -> accentColor.copy(alpha = 0.15f)
+        else -> Color.Transparent
+    }
+    val backgroundColor by animateColorAsState(
+        targetValue = backgroundColorTarget,
+        animationSpec = tween(durationMillis = NuvioMotion.tokens.durations.fast),
+        label = "sidebarSettingsBackground"
     )
+    val iconTintTarget = when {
+        selected -> Color.White
+        isFocused -> colors.TextPrimary
+        else -> colors.text.onOverlay
+    }
+    val iconTint by animateColorAsState(
+        targetValue = iconTintTarget,
+        animationSpec = tween(durationMillis = NuvioMotion.tokens.durations.fast),
+        label = "sidebarSettingsIconTint"
+    )
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .size(SidebarLeadingVisualSize)
+            .onFocusChanged {
+                isFocused = it.hasFocus
+                if (it.hasFocus) onFocused()
+            }
+            .focusProperties { canFocus = focusEnabled },
+        colors = CardDefaults.colors(
+            containerColor = backgroundColor,
+            focusedContainerColor = backgroundColor
+        ),
+        border = CardDefaults.border(
+            border = androidx.tv.material3.Border.None,
+            focusedBorder = androidx.tv.material3.Border(
+                border = androidx.compose.foundation.BorderStroke(NuvioStrokes.tokens.thin, Color.Transparent),
+                shape = CircleShape
+            )
+        ),
+        shape = CardDefaults.shape(shape = CircleShape),
+        scale = CardDefaults.scale(focusedScale = 1.08f, pressedScale = 1f)
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                painter = rememberRawSvgPainter(R.raw.sidebar_settings),
+                contentDescription = label,
+                tint = iconTint,
+                modifier = Modifier.size(NuvioComponents.tokens.sidebar.iconSize)
+            )
+        }
+    }
 }
 
 @Composable

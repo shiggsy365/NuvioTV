@@ -413,6 +413,18 @@ fun LayoutSettingsContent(
                             onFocused = { focusedSection = LayoutSettingsSection.HOME_CONTENT }
                         )
                     }
+                    CompactToggleRow(
+                        title = stringResource(R.string.layout_show_library_menu),
+                        subtitle = stringResource(R.string.layout_show_library_menu_sub),
+                        checked = uiState.libraryMenuVisible,
+                        onToggle = {
+                            viewModel.onEvent(
+                                LayoutSettingsEvent.SetLibraryMenuVisible(!uiState.libraryMenuVisible)
+                            )
+                        },
+                        onFocused = { focusedSection = LayoutSettingsSection.HOME_CONTENT }
+                    )
+
                     DiscoverLocationRow(
                         selectedLocation = uiState.discoverLocation,
                         rememberedLocation = uiState.lastNonOffDiscoverLocation,
@@ -460,7 +472,7 @@ fun LayoutSettingsContent(
                             onFocused = { focusedSection = LayoutSettingsSection.HOME_CONTENT }
                         )
                     }
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_catalog_type),
                         subtitle = stringResource(R.string.layout_catalog_type_sub),
                         checked = uiState.catalogTypeSuffixEnabled,
@@ -471,7 +483,7 @@ fun LayoutSettingsContent(
                         },
                         onFocused = { focusedSection = LayoutSettingsSection.HOME_CONTENT }
                     )
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_hide_unreleased),
                         subtitle = stringResource(R.string.layout_hide_unreleased_sub),
                         checked = uiState.hideUnreleasedContent,
@@ -482,7 +494,7 @@ fun LayoutSettingsContent(
                         },
                         onFocused = { focusedSection = LayoutSettingsSection.HOME_CONTENT }
                     )
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_overall_ratings),
                         subtitle = stringResource(
                             if (uiState.homeImdbRatingsVisibility.showRatings) {
@@ -524,7 +536,7 @@ fun LayoutSettingsContent(
                         onFocused = { focusedSection = LayoutSettingsSection.DETAIL_PAGE }
                     )
 
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_blur_unwatched),
                         subtitle = stringResource(R.string.layout_blur_unwatched_sub),
                         checked = uiState.blurUnwatchedEpisodes,
@@ -577,8 +589,7 @@ fun LayoutSettingsContent(
                             )
                         }
                     }
-
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_trailer_button),
                         subtitle = stringResource(R.string.layout_trailer_button_sub),
                         checked = uiState.detailPageTrailerButtonEnabled,
@@ -592,7 +603,7 @@ fun LayoutSettingsContent(
                         onFocused = { focusedSection = LayoutSettingsSection.DETAIL_PAGE }
                     )
 
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_prefer_external_meta),
                         subtitle = stringResource(R.string.layout_prefer_external_meta_sub),
                         checked = uiState.preferExternalMetaAddonDetail,
@@ -606,7 +617,7 @@ fun LayoutSettingsContent(
                         onFocused = { focusedSection = LayoutSettingsSection.DETAIL_PAGE }
                     )
 
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_show_full_release_date),
                         subtitle = stringResource(R.string.layout_show_full_release_date_sub),
                         checked = uiState.showFullReleaseDate,
@@ -634,7 +645,7 @@ fun LayoutSettingsContent(
                         style = MaterialTheme.typography.labelLarge,
                         color = NuvioTheme.colors.TextSecondary
                     )
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.settings_stream_size_badges_title),
                         subtitle = stringResource(R.string.settings_stream_size_badges_description),
                         checked = streamBadgeUiState.showFileSizeBadges,
@@ -662,7 +673,7 @@ fun LayoutSettingsContent(
                         style = MaterialTheme.typography.labelLarge,
                         color = NuvioTheme.colors.TextSecondary
                     )
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.settings_stream_addon_logo_title),
                         subtitle = stringResource(R.string.settings_stream_addon_logo_description),
                         checked = streamBadgeUiState.showAddonLogo,
@@ -683,7 +694,7 @@ fun LayoutSettingsContent(
                     focusRequester = continueWatchingHeaderFocus,
                     onFocused = { focusedSection = LayoutSettingsSection.CONTINUE_WATCHING }
                 ) {
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_cw_enabled),
                         subtitle = stringResource(R.string.layout_cw_enabled_sub),
                         checked = uiState.continueWatchingEnabled,
@@ -766,8 +777,7 @@ fun LayoutSettingsContent(
                             onFocused = { focusedSection = LayoutSettingsSection.CONTINUE_WATCHING }
                         )
                     }
-
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_next_up_furthest_episode),
                         subtitle = stringResource(R.string.layout_next_up_furthest_episode_sub),
                         checked = uiState.nextUpFromFurthestEpisode,
@@ -779,7 +789,7 @@ fun LayoutSettingsContent(
                         onFocused = { focusedSection = LayoutSettingsSection.CONTINUE_WATCHING }
                     )
 
-                    CompactToggleRow(
+    CompactToggleRow(
                         title = stringResource(R.string.layout_show_unaired_next_up),
                         subtitle = stringResource(R.string.layout_show_unaired_next_up_sub),
                         checked = uiState.showUnairedNextUp,
@@ -1338,7 +1348,6 @@ private fun DiscoverLocationRow(
 ) {
     val sectionEnabled = selectedLocation != DiscoverLocation.OFF
     var dialogOpen by remember { mutableStateOf(false) }
-
     CompactToggleRow(
         title = stringResource(R.string.layout_show_discover),
         subtitle = stringResource(R.string.layout_show_discover_sub),

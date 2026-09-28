@@ -27,6 +27,7 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 fun LiveTvSettingsScreen(onBack: () -> Unit, viewModel: LiveTvSettingsViewModel = hiltViewModel()) {
     val stored by viewModel.settings.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val importing by viewModel.importing.collectAsStateWithLifecycle()
     var draft by remember(stored) { mutableStateOf(stored) }
     BackHandler(onBack = onBack)
     Column(
@@ -53,7 +54,10 @@ fun LiveTvSettingsScreen(onBack: () -> Unit, viewModel: LiveTvSettingsViewModel 
         LiveTvTextField("API token", draft.dispatcharrApiToken) { draft = draft.copy(dispatcharrApiToken = it) }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             FocusButton("Save") { viewModel.save(draft, onBack) }
-            FocusButton("Back", onBack)
+            FocusButton(if (importing) "Re-importing..." else "Re-import channels, guide and logos", enabled = !importing) {
+                viewModel.reimport()
+            }
+            FocusButton("Back", onClick = onBack)
         }
         if (message != null) Text(message!!, color = NuvioTheme.colors.Primary)
     }
@@ -86,10 +90,11 @@ private fun LiveTvTextField(label: String, value: String, onChange: (String) -> 
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun FocusButton(label: String, onClick: () -> Unit) {
+private fun FocusButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.onFocusChanged { focused = it.isFocused },
         colors = ButtonDefaults.colors(
             containerColor = NuvioTheme.colors.BackgroundCard,

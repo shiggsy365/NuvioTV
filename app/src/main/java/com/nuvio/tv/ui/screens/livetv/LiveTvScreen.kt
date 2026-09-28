@@ -15,7 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -96,38 +98,13 @@ fun LiveTvScreen(
                 }
 
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ProgrammeInfoPanel(focusedItem)
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(state.guide.groups) { item ->
-                            FilterChip(
-                                selected = group == item,
-                                onClick = { group = item },
-                                colors = FilterChipDefaults.colors(
-                                    containerColor = NuvioTheme.colors.BackgroundCard,
-                                    focusedContainerColor = NuvioTheme.colors.Secondary,
-                                    selectedContainerColor = NuvioTheme.colors.Secondary,
-                                    focusedSelectedContainerColor = NuvioTheme.colors.Secondary,
-                                    contentColor = NuvioTheme.colors.TextSecondary,
-                                    focusedContentColor = NuvioTheme.colors.OnSecondary,
-                                    selectedContentColor = NuvioTheme.colors.OnSecondary,
-                                    focusedSelectedContentColor = NuvioTheme.colors.OnSecondary
-                                ),
-                                border = FilterChipDefaults.border(
-                                    border = Border(BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Border)),
-                                    focusedBorder = Border(BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing)),
-                                    selectedBorder = Border(BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Primary)),
-                                    focusedSelectedBorder = Border(BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing))
-                                ),
-                                shape = FilterChipDefaults.shape(shape = RoundedCornerShape(20.dp)),
-                                modifier = if (item == state.guide.groups.firstOrNull()) {
-                                    Modifier.focusRequester(contentFocusRequester)
-                                } else Modifier
-                            ) { Text(item, maxLines = 1) }
-                        }
-                    }
+                    ProgrammeInfoPanel(focusedItem, state.guide.loadedAt)
+                    LiveTvGroupTabs(
+                        groups = state.guide.groups,
+                        selectedGroup = group,
+                        focusRequester = contentFocusRequester,
+                        onGroupSelected = { group = it }
+                    )
                     Box(Modifier.fillMaxWidth().weight(1f)) {
                         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(
@@ -147,6 +124,7 @@ fun LiveTvScreen(
                                         .sortedBy { it.startMillis }
                                     ChannelRow(
                                         channel = channel,
+                                        guideLoadedAt = state.guide.loadedAt,
                                         programmes = programmes,
                                         windowStart = windowStart,
                                         windowEnd = windowEnd,
@@ -183,8 +161,69 @@ fun LiveTvScreen(
     }
 }
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun ProgrammeInfoPanel(focused: FocusedGuideItem?) {
+private fun LiveTvGroupTabs(
+    groups: List<String>,
+    selectedGroup: String?,
+    focusRequester: FocusRequester,
+    onGroupSelected: (String) -> Unit
+) {
+    val activeGroup = selectedGroup ?: groups.firstOrNull()
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        items(groups) { item ->
+            val selected = item == activeGroup
+            Card(
+                onClick = { onGroupSelected(item) },
+                modifier = (if (selected) Modifier.focusRequester(focusRequester) else Modifier)
+                    .height(44.dp),
+                colors = CardDefaults.colors(
+                    containerColor = Color.Transparent,
+                    focusedContainerColor = NuvioTheme.colors.BackgroundCard,
+                    pressedContainerColor = NuvioTheme.colors.BackgroundCard
+                ),
+                border = CardDefaults.border(
+                    border = Border.None,
+                    focusedBorder = Border(BorderStroke(NuvioTheme.spacing.xxs, NuvioTheme.colors.FocusRing))
+                ),
+                shape = CardDefaults.shape(shape = RoundedCornerShape(6.dp)),
+                scale = CardDefaults.scale(focusedScale = 1.04f)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(horizontal = 18.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = item,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = if (selected) NuvioTheme.colors.Primary else NuvioTheme.colors.TextSecondary,
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        Modifier
+                            .width(34.dp)
+                            .height(3.dp)
+                            .background(
+                                if (selected) NuvioTheme.colors.Primary else Color.Transparent,
+                                RoundedCornerShape(3.dp)
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgrammeInfoPanel(focused: FocusedGuideItem?, guideLoadedAt: Long) {
     val channel = focused?.channel
     val programme = focused?.programme
     Row(
@@ -195,8 +234,13 @@ private fun ProgrammeInfoPanel(focused: FocusedGuideItem?) {
             Modifier.width(224.dp).fillMaxHeight().background(NuvioTheme.colors.SurfaceVariant),
             contentAlignment = Alignment.Center
         ) {
+            val imageUrl = programme?.iconUrl ?: channel?.logoUrl
+            val context = LocalContext.current
             AsyncImage(
-                model = programme?.iconUrl ?: channel?.logoUrl,
+                model = ImageRequest.Builder(context)
+                    .data(imageUrl)
+                    .memoryCacheKey(imageUrl?.let { it + ":" + guideLoadedAt })
+                    .build(),
                 contentDescription = programme?.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -256,12 +300,19 @@ private fun ChannelRow(
     windowStart: Long,
     windowEnd: Long,
     channelWidth: Dp,
+    guideLoadedAt: Long,
     focusRequester: FocusRequester?,
     onFocused: (LiveTvProgramme?) -> Unit,
     onPlay: (LiveTvProgramme?) -> Unit
 ) {
-    Row(Modifier.fillMaxWidth().height(40.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        ChannelIdentity(channel, Modifier.width(channelWidth).fillMaxHeight())
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .focusGroup(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        ChannelIdentity(channel, guideLoadedAt, Modifier.width(channelWidth).fillMaxHeight())
         val visible = programmes.filter { it.endMillis > windowStart && it.startMillis < windowEnd }
         var focusRequesterApplied = false
         fun focusModifier(modifier: Modifier): Modifier {
@@ -300,13 +351,18 @@ private fun ChannelRow(
 }
 
 @Composable
-private fun ChannelIdentity(channel: LiveTvChannel, modifier: Modifier = Modifier) {
+private fun ChannelIdentity(channel: LiveTvChannel, guideLoadedAt: Long, modifier: Modifier = Modifier) {
     Box(
         modifier.background(NuvioTheme.colors.SurfaceVariant).padding(horizontal = 5.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center
     ) {
         val context = LocalContext.current
-        val painter = rememberAsyncImagePainter(ImageRequest.Builder(context).data(channel.logoUrl).build())
+        val painter = rememberAsyncImagePainter(
+            ImageRequest.Builder(context)
+                .data(channel.logoUrl)
+                .memoryCacheKey(channel.logoUrl?.let { it + ":" + guideLoadedAt })
+                .build()
+        )
         val painterState by painter.state.collectAsState()
         if (channel.logoUrl.isNullOrBlank() || painterState is AsyncImagePainter.State.Error) {
             Text(

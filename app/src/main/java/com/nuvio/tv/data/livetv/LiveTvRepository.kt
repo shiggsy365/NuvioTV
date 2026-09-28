@@ -3,6 +3,7 @@ package com.nuvio.tv.data.livetv
 import android.content.Context
 import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.data.local.LiveTvSettingsDataStore
+import com.nuvio.tv.core.image.ImageInvalidationBus
 import com.nuvio.tv.domain.model.LiveTvGuide
 import com.nuvio.tv.domain.model.LiveTvSettings
 import com.nuvio.tv.domain.model.LiveTvStreamOption
@@ -67,6 +68,11 @@ class LiveTvRepository @Inject constructor(
             var settings = settingsStore.get(profileId)
             require(settings.playlistUrl.isNotBlank() && settings.epgUrl.isNotBlank()) { "Live TV sources are not configured" }
             val now = System.currentTimeMillis()
+            val previousLogoUrls = if (force && updateActiveGuide) {
+                (_guide.value.channels.mapNotNull { it.logoUrl } + _guide.value.programmes.mapNotNull { it.iconUrl }).toSet()
+            } else {
+                emptySet()
+            }
             val directory = cacheDirectory(profileId)
             val playlistFile = File(directory, "playlist.m3u")
             val epgFile = File(directory, "guide.xml")
@@ -92,8 +98,14 @@ class LiveTvRepository @Inject constructor(
             val programmes = epgFile.inputStream().buffered().use {
                 XmlTvParser.parse(it, now - PAST_WINDOW_MS, now + FUTURE_WINDOW_MS)
             }
-            LiveTvGuide(channels, programmes, now).also {
-                if (updateActiveGuide && profileManager.activeProfileId.value == profileId) _guide.value = it
+            LiveTvGuide(channels, programmes, now).also { guide ->
+                if (updateActiveGuide && profileManager.activeProfileId.value == profileId) {
+                    _guide.value = guide
+                    if (force) {
+                        val refreshedLogoUrls = guide.channels.mapNotNull { it.logoUrl } + guide.programmes.mapNotNull { it.iconUrl }
+                        (previousLogoUrls + refreshedLogoUrls).forEach(ImageInvalidationBus::notifyInvalidated)
+                    }
+                }
             }
         }
     }

@@ -465,8 +465,9 @@ fun PlayerScreen(
         uiState.showSpeedDialog,
         shouldConfirmNextEpisodeOnEnd,
         postPlayRecommendationState.isVisible,
+        liveStreamPickerState.visible,
     ) {
-        if (shouldConfirmNextEpisodeOnEnd || postPlayRecommendationState.isVisible) return@LaunchedEffect
+        if (shouldConfirmNextEpisodeOnEnd || postPlayRecommendationState.isVisible || liveStreamPickerState.visible) return@LaunchedEffect
         if (uiState.error != null) return@LaunchedEffect
         if (uiState.showControls && !uiState.showEpisodesPanel && !uiState.showSourcesPanel &&
             !uiState.showAudioOverlay && !uiState.showSubtitleOverlay &&
