@@ -156,6 +156,12 @@ internal fun ModernHomeRowsList(
 
     val rowFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
     val stableItemFocusRequestersByRow = remember { mutableMapOf<String, StableRef<MutableMap<Int, FocusRequester>>>() }
+    val activeRowKeys = remember(carouselRows) { carouselRows.list.map { it.key }.toSet() }
+    LaunchedEffect(activeRowKeys) {
+        rowFocusRequesters.keys.retainAll(activeRowKeys)
+        stableItemFocusRequestersByRow.keys.retainAll(activeRowKeys)
+        focusedItemByRowMap.keys.retainAll(activeRowKeys)
+    }
 
     val density = LocalDensity.current
     val context = LocalContext.current

@@ -599,6 +599,18 @@ private fun RowsContent(
     val rowFocusedItemIndex = remember { mutableMapOf<String, Int>() }
     val focusedItemByRow = remember { mutableStateMapOf<String, Int>() }
     val currentFocusedRowKey = remember { mutableStateOf(focusState.focusedRowKey) }
+    val activeSourceRowKeys = remember(sourceTabs) {
+        sourceTabs.mapIndexed { index, tab ->
+            tab.catalogRow?.key() ?: "row_${index}_${tab.label}"
+        }.toSet()
+    }
+    LaunchedEffect(activeSourceRowKeys) {
+        rowStates.keys.retainAll(activeSourceRowKeys)
+        rowFocusRequesters.keys.retainAll(activeSourceRowKeys)
+        rowEntryFocusRequesters.keys.retainAll(activeSourceRowKeys)
+        rowFocusedItemIndex.keys.retainAll(activeSourceRowKeys)
+        focusedItemByRow.keys.retainAll(activeSourceRowKeys)
+    }
     val folderScope = rememberCoroutineScope()
 
     // Improved Back: scroll to first item in row before exiting collection

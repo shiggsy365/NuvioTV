@@ -232,11 +232,12 @@ internal fun ModernSidebarBlurPanel(
             }
         }
 
+        val footerSettingsFocusIndex = drawerItems.size + if (showProfileSelector && activeProfileName.isNotEmpty()) 1 else 0
         SidebarDateTime(
             settingsLabel = settingsLabel,
             settingsSelected = selectedDrawerRoute == Screen.Settings.route,
             focusEnabled = keepSidebarFocusDuringCollapse,
-            onFocused = { onDrawerItemFocused(drawerItems.lastIndex) },
+            onFocused = { onDrawerItemFocused(footerSettingsFocusIndex) },
             onSettingsClick = onSettingsClick
         )
     }
@@ -257,8 +258,11 @@ private fun SidebarDateTime(
             now = System.currentTimeMillis()
         }
     }
-    val formatted = remember(now) {
-        SimpleDateFormat("EEE d MMM  •  HH:mm", Locale.getDefault()).format(Date(now))
+    val formattedDate = remember(now) {
+        SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(Date(now))
+    }
+    val formattedTime = remember(now) {
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now))
     }
     Row(
         modifier = Modifier
@@ -267,13 +271,23 @@ private fun SidebarDateTime(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
     ) {
-        Text(
-            text = formatted,
+        Column(
             modifier = Modifier.weight(1f),
-            style = androidx.tv.material3.MaterialTheme.typography.bodySmall,
-            color = NuvioTheme.colors.TextSecondary,
-            maxLines = 1
-        )
+            verticalArrangement = Arrangement.spacedBy(0.dp)
+        ) {
+            Text(
+                text = formattedDate,
+                style = androidx.tv.material3.MaterialTheme.typography.labelSmall,
+                color = NuvioTheme.colors.TextSecondary,
+                maxLines = 1
+            )
+            Text(
+                text = formattedTime,
+                style = androidx.tv.material3.MaterialTheme.typography.labelSmall,
+                color = NuvioTheme.colors.TextSecondary.copy(alpha = 0.82f),
+                maxLines = 1
+            )
+        }
         SidebarSettingsIcon(
             label = settingsLabel,
             selected = settingsSelected,

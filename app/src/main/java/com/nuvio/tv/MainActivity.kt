@@ -57,7 +57,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -405,8 +405,8 @@ open class MainActivity : ComponentActivity() {
             val hasSeenAuthQrFlow = remember(appOnboardingDataStore) {
                 appOnboardingDataStore.hasSeenAuthQrOnFirstLaunch.map<Boolean, Boolean?> { it }
             }
-            val hasSeenAuthQrOnFirstLaunch by hasSeenAuthQrFlow.collectAsState(initial = null)
-            val authState by authManager.authState.collectAsState()
+            val hasSeenAuthQrOnFirstLaunch by hasSeenAuthQrFlow.collectAsStateWithLifecycle(initialValue = null)
+            val authState by authManager.authState.collectAsStateWithLifecycle()
             val context = LocalContext.current
 
             LaunchedEffect(authSessionNoticeDataStore, context) {
@@ -429,12 +429,12 @@ open class MainActivity : ComponentActivity() {
                 }
             }
 
-            val activeProfileId by profileManager.activeProfileId.collectAsState()
-            val startupSplashEnabled by profileManager.startupSplashEnabled.collectAsState()
+            val activeProfileId by profileManager.activeProfileId.collectAsStateWithLifecycle()
+            val startupSplashEnabled by profileManager.startupSplashEnabled.collectAsStateWithLifecycle()
             val startupLoadingState = remember(activeProfileId, startupSession) { StartupLoadingState() }
-            val profiles by profileManager.profiles.collectAsState()
-            val hasEverSelectedProfile by profileManager.hasEverSelectedProfile.collectAsState()
-            val rememberLastProfileEnabled by profileManager.rememberLastProfileEnabled.collectAsState()
+            val profiles by profileManager.profiles.collectAsStateWithLifecycle()
+            val hasEverSelectedProfile by profileManager.hasEverSelectedProfile.collectAsStateWithLifecycle()
+            val rememberLastProfileEnabled by profileManager.rememberLastProfileEnabled.collectAsStateWithLifecycle()
             val activeProfile = remember(activeProfileId, profiles) {
                 profiles.firstOrNull { it.id == activeProfileId }
             }
@@ -475,7 +475,7 @@ open class MainActivity : ComponentActivity() {
             }
 
             var avatarCatalog by remember { mutableStateOf(emptyList<com.nuvio.tv.data.remote.supabase.AvatarCatalogItem>()) }
-            val avatarMemberAccess by memberAccessRepository.access.collectAsState()
+            val avatarMemberAccess by memberAccessRepository.access.collectAsStateWithLifecycle()
             val hasProfileAvatarAccess = avatarMemberAccess.entitlements
                 .includes(CosmeticEntitlement.PROFILE_AVATARS)
 
@@ -588,12 +588,12 @@ open class MainActivity : ComponentActivity() {
                 }
             }
             val mainUiPrefs by key(activeProfileId, startupSession) {
-                mainUiPrefsFlow.collectAsState(initial = MainUiPrefs(hasChosenLayout = null))
+                mainUiPrefsFlow.collectAsStateWithLifecycle(initialValue = MainUiPrefs(hasChosenLayout = null))
             }
             val installedAddons by key(activeProfileId, startupSession) {
                 remember(addonRepository) {
                     addonRepository.getInstalledAddons()
-                }.collectAsState(initial = null)
+                }.collectAsStateWithLifecycle(initialValue = null)
             }
             val discoverLocation = mainUiPrefs.discoverLocation
 
@@ -624,7 +624,7 @@ open class MainActivity : ComponentActivity() {
                     profile = activeProfile,
                     entitlements = mainUiPrefs.memberAccess.entitlements
                 )
-                val profileBgCatalog by profileBackgroundRepository.catalog.collectAsState()
+                val profileBgCatalog by profileBackgroundRepository.catalog.collectAsStateWithLifecycle()
                 // Cache splash background in SharedPreferences so the splash
                 // can show the correct background on cold start when
                 // "remember last profile" skips the profile selection screen.
@@ -819,7 +819,7 @@ open class MainActivity : ComponentActivity() {
                         effectiveExperienceMode == ExperienceMode.ESSENTIAL &&
                             installedAddons.orEmpty().isEmpty() &&
                             !mainUiPrefs.addonSetupSkipped
-                    val pendingDeepLink by pendingDeepLinkUrl.collectAsState()
+                    val pendingDeepLink by pendingDeepLinkUrl.collectAsStateWithLifecycle()
 
                     LaunchedEffect(pendingDeepLink) {
                         val url = pendingDeepLink ?: return@LaunchedEffect
@@ -955,7 +955,7 @@ open class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    val pendingLaunch by pendingLaunchIntent.collectAsState()
+                    val pendingLaunch by pendingLaunchIntent.collectAsStateWithLifecycle()
                     LaunchedEffect(navController, layoutChosen, pendingLaunch) {
                         val intent = pendingLaunch ?: return@LaunchedEffect
                         if (!layoutChosen) return@LaunchedEffect
@@ -1065,9 +1065,9 @@ open class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    val liveTvSettings by liveTvSettingsDataStore.settings.collectAsState(initial = com.nuvio.tv.domain.model.LiveTvSettings())
+                    val liveTvSettings by liveTvSettingsDataStore.settings.collectAsStateWithLifecycle(initialValue = com.nuvio.tv.domain.model.LiveTvSettings())
                     val showLiveTv = liveTvSettings.isConfigured
-                    val showPodcasts by podcastLibraryDataStore.menuEnabled.collectAsState(initial = true)
+                    val showPodcasts by podcastLibraryDataStore.menuEnabled.collectAsStateWithLifecycle(initialValue = true)
                     val rootRoutes = remember(discoverLocation, showLiveTv, showPodcasts) {
                         buildSet {
                             add(Screen.Home.route)
@@ -1173,7 +1173,7 @@ open class MainActivity : ComponentActivity() {
                             drawerItems.first()
                         }
 
-                    val confirmExitEnabled by profileManager.confirmExitEnabled.collectAsState()
+                    val confirmExitEnabled by profileManager.confirmExitEnabled.collectAsStateWithLifecycle()
                     var backPressedOnce by remember { mutableStateOf(false) }
                     LaunchedEffect(backPressedOnce) {
                         if (backPressedOnce) {
@@ -1196,7 +1196,7 @@ open class MainActivity : ComponentActivity() {
                     }
 
                     val updateViewModel: UpdateViewModel = hiltViewModel(this@MainActivity)
-                    val updateState by updateViewModel.uiState.collectAsState()
+                    val updateState by updateViewModel.uiState.collectAsStateWithLifecycle()
                     val updateBannerState = updateState.copy(
                         showBanner = updateState.showBanner && currentRoute?.startsWith("player/") != true
                     )
@@ -1264,7 +1264,7 @@ open class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            val autoNextOverlay by externalPlaybackTracker.autoNextOverlay.collectAsState()
+                            val autoNextOverlay by externalPlaybackTracker.autoNextOverlay.collectAsStateWithLifecycle()
                             autoNextOverlay?.let { ov ->
                                 com.nuvio.tv.ui.screens.player.LoadingOverlay(
                                     visible = true,
@@ -1894,6 +1894,7 @@ private fun ModernSidebarScaffold(
         isSidebarExpanded || sidebarCollapsePending || pendingContentFocusTransfer
     val hasSidebarProfileItem = showProfileSelector && activeProfileName.isNotEmpty()
     val sidebarTopBoundaryIndex = if (hasSidebarProfileItem) drawerItems.size else 0
+    val sidebarFooterSettingsIndex = drawerItems.size + if (hasSidebarProfileItem) 1 else 0
 
     LaunchedEffect(showSidebar) {
         if (!showSidebar) {
@@ -2178,8 +2179,7 @@ private fun ModernSidebarScaffold(
                             }
 
                             Key.DirectionDown -> {
-                                if (focusedDrawerIndex == drawerItems.lastIndex) {
-                                    // Already at the bottom drawer item — stay put.
+                                if (focusedDrawerIndex == sidebarFooterSettingsIndex) {
                                     true
                                 } else if (focusedDrawerIndex == drawerItems.size && hasSidebarProfileItem) {
                                     // Profile → first drawer item: skip moveFocus (the
@@ -2261,7 +2261,9 @@ private fun ModernSidebarScaffold(
                 }
             }
 
+            val showCollapsedCurrentPagePill = false
             if (
+                showCollapsedCurrentPagePill &&
                 !sidebarCollapsed &&
                 sidebarShowCollapsedPill &&
                 selectedDrawerRoute != Screen.Search.route
