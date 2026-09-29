@@ -236,10 +236,11 @@ private fun ProgrammeInfoPanel(focused: FocusedGuideItem?, guideLoadedAt: Long) 
         ) {
             val imageUrl = programme?.iconUrl ?: channel?.logoUrl
             val context = LocalContext.current
+            val revalidationKey = com.nuvio.tv.core.image.rememberImageRevalidationKey(imageUrl)
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(imageUrl)
-                    .memoryCacheKey(imageUrl?.let { it + ":" + guideLoadedAt })
+                    .memoryCacheKey(imageUrl?.let { "$it:$guideLoadedAt:$revalidationKey" })
                     .build(),
                 contentDescription = programme?.title,
                 contentScale = ContentScale.Crop,
@@ -357,10 +358,11 @@ private fun ChannelIdentity(channel: LiveTvChannel, guideLoadedAt: Long, modifie
         contentAlignment = Alignment.Center
     ) {
         val context = LocalContext.current
+        val revalidationKey = com.nuvio.tv.core.image.rememberImageRevalidationKey(channel.logoUrl)
         val painter = rememberAsyncImagePainter(
             ImageRequest.Builder(context)
                 .data(channel.logoUrl)
-                .memoryCacheKey(channel.logoUrl?.let { it + ":" + guideLoadedAt })
+                .memoryCacheKey(channel.logoUrl?.let { "$it:$guideLoadedAt:$revalidationKey" })
                 .build()
         )
         val painterState by painter.state.collectAsState()

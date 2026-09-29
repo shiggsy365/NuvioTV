@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -187,7 +188,11 @@ fun PodcastsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val focusRequester = LocalContentFocusRequester.current
     var query by remember { mutableStateOf(TextFieldValue(state.query)) }
-    var initialTrendingFocusRequested by remember { mutableStateOf(false) }
+    var initialFocusResolved by remember { mutableStateOf(false) }
+    // The search field must not be part of initial-entry focus: while content is
+    // loading it's the only focusable node on screen, so it would otherwise grab
+    // default focus (and pop the keyboard) before we can steer focus to a card.
+    var searchFocusable by remember { mutableStateOf(false) }
     BackHandler(onBack = onBack)
 
     Column(
@@ -199,7 +204,7 @@ fun PodcastsScreen(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it; viewModel.search(it.text) },
-                modifier = Modifier.width(420.dp),
+                modifier = Modifier.width(420.dp).focusProperties { canFocus = searchFocusable },
                 singleLine = true,
                 textStyle = androidx.compose.material3.MaterialTheme.typography.bodyLarge.copy(color = Color.White),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -227,14 +232,14 @@ fun PodcastsScreen(
                     style = MaterialTheme.typography.titleLarge,
                     color = NuvioTheme.colors.TextPrimary
                 )
-                LaunchedEffect(state.loading, state.podcasts, state.favouritePodcasts) {
-                    if (!initialTrendingFocusRequested && state.query.isBlank() && !state.loading &&
-                        (state.favouritePodcasts.isNotEmpty() || state.podcasts.isNotEmpty())
-                    ) {
+                LaunchedEffect(state.loading, state.podcasts, state.favouritePodcasts, state.query) {
+                    if (initialFocusResolved || state.loading) return@LaunchedEffect
+                    if (state.query.isBlank() && (state.favouritePodcasts.isNotEmpty() || state.podcasts.isNotEmpty())) {
                         delay(120)
                         runCatching { focusRequester.requestFocus() }
-                        initialTrendingFocusRequested = true
                     }
+                    searchFocusable = true
+                    initialFocusResolved = true
                 }
                 if (showingFavourites) {
                     Text(

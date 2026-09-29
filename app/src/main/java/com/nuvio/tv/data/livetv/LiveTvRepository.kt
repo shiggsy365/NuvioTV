@@ -1,6 +1,7 @@
 package com.nuvio.tv.data.livetv
 
 import android.content.Context
+import coil3.SingletonImageLoader
 import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.data.local.LiveTvSettingsDataStore
 import com.nuvio.tv.core.image.ImageInvalidationBus
@@ -103,7 +104,13 @@ class LiveTvRepository @Inject constructor(
                     _guide.value = guide
                     if (force) {
                         val refreshedLogoUrls = guide.channels.mapNotNull { it.logoUrl } + guide.programmes.mapNotNull { it.iconUrl }
-                        (previousLogoUrls + refreshedLogoUrls).forEach(ImageInvalidationBus::notifyInvalidated)
+                        // Evict rather than just notify: upstream logos can change content at
+                        // the same URL, and long-lived CDN cache-control headers mean Coil's
+                        // own stale-while-revalidate check may never fire on its own.
+                        val imageLoader = SingletonImageLoader.get(context)
+                        (previousLogoUrls + refreshedLogoUrls).forEach { url ->
+                            ImageInvalidationBus.evictAndNotify(imageLoader, url)
+                        }
                     }
                 }
             }
